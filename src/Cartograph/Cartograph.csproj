@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Cartograph</PackageId>
+    <Description>Portable, memory-mapped data artifact substrate for .NET. Constant-time open, flat memory, cross-process page sharing, records as ReadOnlySequence&lt;byte&gt; with no managed copies proportional to payload.</Description>
+    <PackageTags>memory-mapped;mmap;ReadOnlySequence;zero-copy;substrate;artifact</PackageTags>
+  </PropertyGroup>
+
+</Project>

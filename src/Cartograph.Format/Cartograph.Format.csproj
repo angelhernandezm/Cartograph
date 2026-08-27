@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Cartograph.Format</PackageId>
+    <Description>Cartograph artifact format: header, append-only segment manifest, per-record checksums, and bounds-validated record access over the Cartograph mapped-memory substrate.</Description>
+    <PackageTags>memory-mapped;artifact;format;segment;manifest;checksum</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cartograph\Cartograph.csproj" />
+  </ItemGroup>
+
+</Project>
