@@ -132,7 +132,7 @@ What makes "save it and reload it later" work.
 Cartograph is a substrate and a file format. It is explicitly **not**:
 
 - **An ANN / vector-index engine.** No HNSW, no IVF. That space is well served by
-  **Faiss**, **DiskANN**, **USearch**, and **sqlite-vec**; building another is out of scope.
+  **Faiss**, **USearch**, and **sqlite-vec**; building another is out of scope.
 - **A database.** No query engine, transactions, or secondary indexes.
 - **A serialization framework.** Records are opaque bytes; you choose their meaning.
 
