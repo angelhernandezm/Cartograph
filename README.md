@@ -76,6 +76,42 @@ using var artifact = Artifact.Open("corpus.ctg",
     new ArtifactOpenOptions { ChunkSource = ChunkSourceKind.RandomAccess });
 ```
 
+### Bring your own storage
+
+`IChunkSource` is a supported extension point, so an artifact does not have to live on a local
+disk. Implement it over HTTP range requests, S3 or Azure Blob, an encrypted container, or an
+in-memory buffer, and hand the instance to `Artifact.Open`:
+
+```csharp
+sealed class MyChunkSource : IChunkSource
+{
+    public long Length => /* total artifact size, fixed for the source's lifetime */;
+
+    public ChunkLease Read(long offset, int length)
+    {
+        // Fetch exactly [offset, offset + length) — short reads are a contract violation.
+        // `owner` is disposed with the lease; pass null when the memory needs no cleanup.
+        return new ChunkLease(sequence, owner);
+    }
+
+    public ValueTask<ChunkLease> ReadAsync(long offset, int length, CancellationToken ct = default) => /* … */;
+    public void Dispose() { }
+}
+
+// ownsSource: false keeps the source alive after the artifact is disposed.
+using var source = new MyChunkSource(/* … */);
+using Artifact artifact = await Artifact.OpenAsync(source, ownsSource: false);
+```
+
+Opening stays O(1): only the header, the manifest, and each segment's record directory are read —
+never the payload. So a 200 GB artifact behind a range-capable HTTP server opens in a handful of
+small requests, and records fault in on demand. Cartograph ships no transport code and takes no
+dependency on any client library; the contract implementations must honour (exact-length reads,
+absolute offsets, stable length, thread safety, lease lifetime) is documented on `IChunkSource`.
+
+Structural validation and per-record checksums still apply to custom sources, so a buggy or hostile
+source produces a clean `CartographFormatException` rather than silent corruption.
+
 ## Architecture
 
 Cartograph is layered so the substrate is usable on its own and the format builds on top of it.
@@ -105,7 +141,9 @@ Exposes arbitrary-length memory-mapped files as lifetime-safe `Memory<byte>` /
   multiple views; this segmented sequence is the piece that does not otherwise exist in .NET.
 - **`IChunkSource`** — pluggable reads, with `MappedChunkSource` (mmap) and
   `RandomAccessChunkSource` (pooled `System.IO.RandomAccess`) shipped so the two can be benchmarked
-  head-to-head.
+  head-to-head. It is also a public extension point: implement it to back an artifact with any
+  store — HTTP range requests, object storage, an encrypted container — and pass it to
+  `Artifact.Open` / `Artifact.OpenAsync`.
 - **`NativePrefetch`** — optional `PrefetchVirtualMemory` (Windows) / `madvise(MADV_WILLNEED)`
   (Linux) helpers to avoid unpredictable mid-query page-fault stalls.
 
@@ -135,6 +173,10 @@ Cartograph is a substrate and a file format. It is explicitly **not**:
   **Faiss**, **USearch**, and **sqlite-vec**; building another is out of scope.
 - **A database.** No query engine, transactions, or secondary indexes.
 - **A serialization framework.** Records are opaque bytes; you choose their meaning.
+- **A server or transport.** Cartograph reads artifacts; it does not serve them. An artifact is an
+  immutable file, so any range-capable HTTP server, object store, or CDN already serves it correctly
+  — and immutability makes `ETag` / `Cache-Control: immutable` trivially safe. Remote *reading* is
+  supported through a custom `IChunkSource`.
 
 RAG over corpora larger than RAM is the first intended *demo*, not the definition of the library.
 

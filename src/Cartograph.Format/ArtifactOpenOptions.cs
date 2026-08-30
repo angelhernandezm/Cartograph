@@ -40,6 +40,13 @@ public enum ChunkSourceKind
 
     /// <summary>Read into pooled buffers via <see cref="System.IO.RandomAccess"/>. Async-friendly; often wins on large sequential scans.</summary>
     RandomAccess = 1,
+
+    /// <summary>
+    /// A caller-supplied <see cref="IChunkSource"/> implementation passed to
+    /// <see cref="Artifact.Open(IChunkSource, ArtifactOpenOptions, bool)"/>. Reported for any source
+    /// that is not one of the built-in strategies.
+    /// </summary>
+    Custom = 2,
 }
 
 /// <summary>Options controlling how an <see cref="Artifact"/> is opened.</summary>
@@ -48,12 +55,16 @@ public sealed class ArtifactOpenOptions
     /// <summary>The default options: memory-mapped access with checksum verification enabled.</summary>
     public static ArtifactOpenOptions Default { get; } = new();
 
-    /// <summary>Which chunk source strategy to use for record reads.</summary>
+    /// <summary>
+    /// Which chunk source strategy to use for record reads. Ignored when the artifact is opened
+    /// from a caller-supplied <see cref="IChunkSource"/>.
+    /// </summary>
     public ChunkSourceKind ChunkSource { get; init; } = ChunkSourceKind.Mapped;
 
     /// <summary>
     /// The mapped window size, used only when <see cref="ChunkSource"/> is
     /// <see cref="ChunkSourceKind.Mapped"/>. A small value forces the multi-view stitching path.
+    /// Ignored when the artifact is opened from a caller-supplied <see cref="IChunkSource"/>.
     /// </summary>
     public long WindowSize { get; init; } = MappedFile.DefaultWindowSize;
 
