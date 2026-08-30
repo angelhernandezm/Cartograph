@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: SegmentDescriptor.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Immutable struct describing one entry in the segment manifest, with file-relative
+// offsets, record count, flags, checksum, and binary serialization/deserialization.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers.Binary;
 
 namespace Cartograph.Format;
@@ -42,6 +74,8 @@ public readonly struct SegmentDescriptor
     public bool IsLive => (Flags & ArtifactFormat.SegmentFlagLive) != 0;
 
     /// <summary>Serializes the descriptor into <paramref name="destination"/> (<see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes).</summary>
+    /// <param name="destination">The span to write the descriptor into; must be at least <see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes long.</param>
+    /// <exception cref="System.ArgumentException">Destination is smaller than a segment descriptor.</exception>
     public void Write(Span<byte> destination)
     {
         if (destination.Length < ArtifactFormat.SegmentDescriptorSize)
@@ -62,6 +96,9 @@ public readonly struct SegmentDescriptor
     }
 
     /// <summary>Parses a descriptor from <paramref name="source"/>.</summary>
+    /// <param name="source">The raw bytes to parse; must be at least <see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes long.</param>
+    /// <returns>The populated <see cref="SegmentDescriptor"/>.</returns>
+    /// <exception cref="CartographFormatException">Manifest is truncated inside a segment descriptor.</exception>
     public static SegmentDescriptor Read(ReadOnlySpan<byte> source)
     {
         if (source.Length < ArtifactFormat.SegmentDescriptorSize)

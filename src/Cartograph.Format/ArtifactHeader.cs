@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: ArtifactHeader.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Defines the fixed-size 64-byte file header struct with serialization (Write)
+// and deserialization (Read) including magic, version, endianness, and checksum validation.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers.Binary;
 using System.IO.Hashing;
 
@@ -28,6 +60,8 @@ public readonly struct ArtifactHeader
     public required ulong ContentLength { get; init; }
 
     /// <summary>Serializes the header into <paramref name="destination"/> (must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes).</summary>
+    /// <param name="destination">The byte span to write the serialized header into; must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes long.</param>
+    /// <exception cref="System.ArgumentException">Destination is smaller than the header.</exception>
     public void Write(Span<byte> destination)
     {
         if (destination.Length < ArtifactFormat.HeaderSize)
@@ -54,6 +88,13 @@ public readonly struct ArtifactHeader
     /// Parses and validates a header from <paramref name="source"/>, throwing
     /// <see cref="CartographFormatException"/> for any inconsistency.
     /// </summary>
+    /// <param name="source">The raw bytes to parse; must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes long.</param>
+    /// <returns>The populated and validated <see cref="ArtifactHeader"/>.</returns>
+    /// <exception cref="CartographFormatException">File is smaller than the fixed header.</exception>
+    /// <exception cref="CartographFormatException">Bad magic: not a Cartograph artifact.</exception>
+    /// <exception cref="CartographFormatException">Endianness marker mismatch; the artifact was written on an incompatible byte order.</exception>
+    /// <exception cref="CartographFormatException">Unsupported format version; this build reads a different major version.</exception>
+    /// <exception cref="CartographFormatException">Header checksum mismatch; the header is corrupt.</exception>
     public static ArtifactHeader Read(ReadOnlySpan<byte> source)
     {
         if (source.Length < ArtifactFormat.HeaderSize)

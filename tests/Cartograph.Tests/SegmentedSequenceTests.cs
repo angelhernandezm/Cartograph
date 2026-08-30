@@ -1,11 +1,50 @@
+// ============================================================================
+// Cartograph
+// File: SegmentedSequenceTests.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Tests that verify MappedSequence stitches multi-chunk records correctly,
+// including large records that span multiple memory-mapped windows.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers;
 using Cartograph.Format;
 using Xunit;
 
 namespace Cartograph.Tests;
 
+/// <summary>
+/// Tests that verify <see cref="MappedSequence"/> stitches multi-chunk records correctly.
+/// </summary>
 public class SegmentedSequenceTests
 {
+    /// <summary>
+    /// Verifies that <see cref="MappedSequence.Create"/> produces a multi-segment
+    /// <see cref="ReadOnlySequence{T}"/> that concatenates the source chunks in order.
+    /// </summary>
     [Fact]
     public void MappedSequence_StitchesChunksInOrder()
     {
@@ -20,6 +59,10 @@ public class SegmentedSequenceTests
         Assert.Equal(TestArtifacts.Pattern(30, 0), sequence.ToArray());
     }
 
+    /// <summary>
+    /// Verifies that a record larger than one mapped window forces multi-segment stitching
+    /// and that the resulting bytes are byte-exact.
+    /// </summary>
     [Fact]
     public void LargeRecord_SpansMultipleMappedWindows()
     {
@@ -41,6 +84,10 @@ public class SegmentedSequenceTests
         Assert.Equal(big, lease.ToArray());
     }
 
+    /// <summary>
+    /// Verifies that manually walking the <see cref="RecordLease.Sequence"/> across window
+    /// boundaries produces bytes that are bit-for-bit identical to the original payload.
+    /// </summary>
     [Fact]
     public void CrossBoundaryReconstruction_IsByteExact()
     {
@@ -63,6 +110,11 @@ public class SegmentedSequenceTests
         Assert.Equal(big, rebuilt);
     }
 
+    /// <summary>
+    /// Counts the number of segments in a <see cref="ReadOnlySequence{T}"/>.
+    /// </summary>
+    /// <param name="sequence">The sequence whose segments are counted.</param>
+    /// <returns>The total number of memory segments in the sequence.</returns>
     private static int CountSegments(ReadOnlySequence<byte> sequence)
     {
         int count = 0;

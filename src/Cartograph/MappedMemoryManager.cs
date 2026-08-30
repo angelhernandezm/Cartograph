@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: MappedMemoryManager.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// A MemoryManager<byte> that exposes a region of a memory-mapped view as
+// Memory<byte>/Span<byte> with no managed copy, handling PointerOffset alignment.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers;
 using System.IO.MemoryMappedFiles;
 using Microsoft.Win32.SafeHandles;
@@ -11,8 +43,8 @@ namespace Cartograph;
 /// <remarks>
 /// <para>
 /// The manager wraps a <see cref="SafeMemoryMappedViewHandle"/> and pins the underlying
-/// pointer for its lifetime via <see cref="SafeMemoryMappedViewHandle.AcquirePointer"/> /
-/// <see cref="SafeMemoryMappedViewHandle.ReleasePointer"/>.
+/// pointer for its lifetime via <c>SafeMemoryMappedViewHandle.AcquirePointer</c> /
+/// <c>SafeMemoryMappedViewHandle.ReleasePointer</c>.
 /// </para>
 /// <para>
 /// IMPORTANT: the pointer returned by <c>AcquirePointer</c> is the base of the mapped region,
@@ -47,6 +79,9 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     /// to the acquired base pointer to reach the requested region.
     /// </param>
     /// <param name="length">The number of bytes exposed by this manager (at most <see cref="int.MaxValue"/>).</param>
+    /// <exception cref="System.ArgumentNullException"><paramref name="handle" /> is <c>null</c>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="length" /> or <paramref name="pointerOffset" /> is negative.</exception>
+    /// <exception cref="System.InvalidOperationException">Failed to acquire a pointer to the mapped view.</exception>
     public MappedMemoryManager(SafeMemoryMappedViewHandle handle, long pointerOffset, int length)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -72,6 +107,8 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     public int Length => _length;
 
     /// <inheritdoc />
+    /// <exception cref="System.ObjectDisposedException">The manager has been disposed.</exception>
+    /// <returns>A <see cref="Span{T}"/> over the mapped region.</returns>
     public override Span<byte> GetSpan()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -84,6 +121,10 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     /// is created. The returned <see cref="MemoryHandle"/> simply points at <c>base + index</c> and
     /// <see cref="Unpin"/> is a no-op.
     /// </remarks>
+    /// <param name="elementIndex">The zero-based element index to pin at.</param>
+    /// <returns>A <see cref="MemoryHandle"/> pointing at the specified element in the mapped region.</returns>
+    /// <exception cref="System.ObjectDisposedException">The manager has been disposed.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="elementIndex"/> is out of range.</exception>
     public override MemoryHandle Pin(int elementIndex = 0)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -102,6 +143,7 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     }
 
     /// <inheritdoc />
+    /// <param name="disposing"><see langword="true"/> if called from <see cref="IDisposable.Dispose"/>; <see langword="false"/> if called from a finalizer.</param>
     protected override void Dispose(bool disposing)
     {
         if (_disposed)

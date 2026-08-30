@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: MappedFile.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// A read-only memory-mapped file tiled into allocation-granularity-aligned windows,
+// supporting zero-copy slicing of arbitrarily large files via ReadOnlySequence<byte>.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers;
 using System.IO.MemoryMappedFiles;
 
@@ -28,6 +60,12 @@ public sealed class MappedFile : IDisposable
     private readonly long _windowSize;
     private int _disposed;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MappedFile" /> class.
+    /// </summary>
+    /// <param name="mappedFile">The underlying memory-mapped file handle.</param>
+    /// <param name="length">The total length of the file in bytes.</param>
+    /// <param name="windowSize">The aligned window size used to tile the file.</param>
     private MappedFile(MemoryMappedFile mappedFile, long length, long windowSize)
     {
         _mappedFile = mappedFile;
@@ -58,6 +96,11 @@ public sealed class MappedFile : IDisposable
     /// is rounded up to a multiple of the allocation granularity and capped so each window fits an
     /// <see cref="int"/>.
     /// </summary>
+    /// <param name="path">The path to the file to open.</param>
+    /// <param name="windowSize">The desired window size; will be aligned and capped automatically.</param>
+    /// <returns>A new <see cref="MappedFile"/> over the specified file.</returns>
+    /// <exception cref="System.ArgumentException"><paramref name="path" /> is <c>null</c> or empty, or the file is empty and cannot be memory-mapped.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="windowSize" /> is negative or zero.</exception>
     public static MappedFile OpenRead(string path, long windowSize = DefaultWindowSize)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -96,6 +139,11 @@ public sealed class MappedFile : IDisposable
     /// Produces a zero-copy <see cref="MappedSlice"/> over <c>[offset, offset + length)</c>, spanning
     /// as many windows as necessary. The returned slice holds leases on every touched window.
     /// </summary>
+    /// <param name="offset">The byte offset within the file to start the slice.</param>
+    /// <param name="length">The number of bytes to include in the slice.</param>
+    /// <returns>A <see cref="MappedSlice"/> over the requested byte range.</returns>
+    /// <exception cref="System.ObjectDisposedException">The <see cref="MappedFile"/> has been disposed.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset" /> or <paramref name="length" /> is negative, or the requested range extends past the end of the file.</exception>
     public MappedSlice Slice(long offset, long length)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
@@ -152,6 +200,9 @@ public sealed class MappedFile : IDisposable
     }
 
     /// <summary>Gets the window at <paramref name="index"/> for direct access (e.g. prefaulting).</summary>
+    /// <param name="index">The zero-based index of the window to retrieve.</param>
+    /// <returns>The <see cref="MappedSegment"/> at the specified index.</returns>
+    /// <exception cref="System.ObjectDisposedException">The file has been disposed.</exception>
     public MappedSegment GetWindow(int index)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);

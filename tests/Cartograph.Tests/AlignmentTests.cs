@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: AlignmentTests.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Tests that verify memory-alignment guarantees for record payloads, including
+// MemoryMarshal float round-trips and minimum 4-byte address alignment.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Cartograph.Format;
@@ -5,8 +37,15 @@ using Xunit;
 
 namespace Cartograph.Tests;
 
+/// <summary>
+/// Tests that verify memory-alignment guarantees for record payloads.
+/// </summary>
 public class AlignmentTests
 {
+    /// <summary>
+    /// Verifies that a float array written to an artifact as raw bytes round-trips
+    /// correctly when read back and cast via <c>MemoryMarshal.Cast&lt;byte, float&gt;</c>.
+    /// </summary>
     [Fact]
     public void FloatRecord_RoundTripsThroughMemoryMarshalCast()
     {
@@ -32,6 +71,10 @@ public class AlignmentTests
         }
     }
 
+    /// <summary>
+    /// Verifies that the first record payload's address satisfies at least 4-byte alignment,
+    /// which is required for safe <c>MemoryMarshal.Cast&lt;byte, float&gt;</c> to <see cref="float"/>.
+    /// </summary>
     [Fact]
     public unsafe void FirstRecordPayload_IsAtLeast4ByteAligned()
     {

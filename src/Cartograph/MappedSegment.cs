@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: MappedSegment.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// A single ref-counted mapped window over a contiguous region of a file, providing
+// lifetime-safe ReadOnlyMemory<byte> access through ViewLease reference counting.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.IO.MemoryMappedFiles;
 
 namespace Cartograph;
@@ -39,6 +71,8 @@ public sealed class MappedSegment : IDisposable
     /// <param name="fileOffset">The absolute file offset of the region.</param>
     /// <param name="length">The length of the region (at most <see cref="int.MaxValue"/>).</param>
     /// <param name="access">The requested access; read-only mappings should keep the default.</param>
+    /// <exception cref="System.ArgumentNullException"><paramref name="mappedFile" /> is <c>null</c>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="fileOffset" /> or <paramref name="length" /> is negative.</exception>
     public MappedSegment(
         MemoryMappedFile mappedFile,
         long fileOffset,
@@ -65,6 +99,7 @@ public sealed class MappedSegment : IDisposable
     /// The whole segment as read-only memory. Prefer <see cref="Lease"/> when the memory will outlive
     /// the immediate call, so its lifetime is protected by the reference count.
     /// </summary>
+    /// <exception cref="System.ObjectDisposedException">The <see cref="MappedSegment"/> has been fully released.</exception>
     public ReadOnlyMemory<byte> Memory
     {
         get
@@ -78,8 +113,11 @@ public sealed class MappedSegment : IDisposable
         }
     }
 
-    /// <summary>Acquires a reference-counted lease over this segment.</summary>
-    /// <exception cref="ObjectDisposedException">The segment's owner has been disposed or it is fully released.</exception>
+    /// <summary>
+    /// Acquires a reference-counted lease over this segment.
+    /// </summary>
+    /// <returns>A <see cref="ViewLease"/> that keeps the backing view alive for its lifetime.</returns>
+    /// <exception cref="System.ObjectDisposedException">The segment's owner has been disposed or it is fully released.</exception>
     public ViewLease Lease()
     {
         if (Volatile.Read(ref _ownerReleased) != 0)
@@ -102,6 +140,9 @@ public sealed class MappedSegment : IDisposable
         }
     }
 
+    /// <summary>
+    /// Decrements the reference count and unmaps the view when the count reaches zero.
+    /// </summary>
     internal void ReleaseLease()
     {
         if (Interlocked.Decrement(ref _refCount) == 0)
@@ -119,6 +160,7 @@ public sealed class MappedSegment : IDisposable
         }
     }
 
+    /// <summary>Releases all unmanaged resources: disposes the memory manager and the view accessor.</summary>
     private void Unmap()
     {
         ((IDisposable)_manager).Dispose();
