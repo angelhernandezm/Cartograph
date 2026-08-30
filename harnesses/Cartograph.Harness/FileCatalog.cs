@@ -56,8 +56,19 @@ internal sealed class CatalogEntry
     /// <summary>
     /// Gets the length of the file, in bytes
     /// </summary>
-    /// <value>The exact byte length of the record that holds this file's contents.</value>
+    /// <value>The total byte length of the file, summed across every record that holds its contents.</value>
     public required long Length { get; init; }
+
+    /// <summary>
+    /// Gets the number of consecutive records this file occupies
+    /// </summary>
+    /// <value>
+    /// The count of records the file was split into. Files larger than the configured piece size are
+    /// streamed across several records, so a file occupies the range
+    /// <c>[<see cref="GlobalIndex" />, <see cref="GlobalIndex" /> + <see cref="RecordCount" />)</c>.
+    /// A zero-length file still occupies exactly one record.
+    /// </value>
+    public required int RecordCount { get; init; }
 
     /// <summary>
     /// Gets the last write time of the source file, expressed in UTC ticks
@@ -66,9 +77,16 @@ internal sealed class CatalogEntry
     public required long LastWriteUtcTicks { get; init; }
 
     /// <summary>
-    /// Gets the XxHash3 checksum of the file contents computed at pack time
+    /// Gets the XxHash3 checksum of the whole file computed at pack time
     /// </summary>
-    /// <value>A 64-bit hash used to verify the record after the artifact is reopened.</value>
+    /// <value>The 64-bit hash of the entire file when it was computed, or <c>0</c> when it was not.</value>
+    /// <remarks>
+    /// Streaming packs skip this by default because computing a whole-file hash would require an extra
+    /// full read pass over every file. When the value is <c>0</c> it simply means "not computed"; it
+    /// does not indicate a defect. Artifact integrity is still protected by Cartograph's own
+    /// per-record checksums, which are written and verified regardless. Pass <c>--checksums</c> to the
+    /// packer to spend the extra read pass and populate this field.
+    /// </remarks>
     public required ulong Checksum { get; init; }
 
     /// <summary>
@@ -78,15 +96,18 @@ internal sealed class CatalogEntry
     public required int SegmentIndex { get; init; }
 
     /// <summary>
-    /// Gets the zero-based index of the record within its segment
+    /// Gets the zero-based index of the file's first record within its segment
     /// </summary>
     /// <value>An index accepted by <see cref="Cartograph.Format.ArtifactSegment.ReadRecord(int)" />.</value>
     public required int RecordIndex { get; init; }
 
     /// <summary>
-    /// Gets the zero-based index of the record across the whole artifact
+    /// Gets the zero-based index of the file's first record across the whole artifact
     /// </summary>
-    /// <value>An index accepted by <see cref="Cartograph.Format.Artifact.ReadRecord(long)" />.</value>
+    /// <value>
+    /// The first of <see cref="RecordCount" /> consecutive indices, each accepted by
+    /// <see cref="Cartograph.Format.Artifact.ReadRecord(long)" />.
+    /// </value>
     public required long GlobalIndex { get; init; }
 
     /// <summary>
@@ -114,7 +135,7 @@ internal sealed class FileCatalog
     /// <summary>
     /// Version of the catalog layout produced and understood by this build
     /// </summary>
-    private const int CatalogVersion = 1;
+    private const int CatalogVersion = 2;
 
     /// <summary>
     /// Gets the absolute path of the folder that was packed
@@ -201,6 +222,7 @@ internal sealed class FileCatalog
             writer.Write(entry.SegmentIndex);
             writer.Write(entry.RecordIndex);
             writer.Write(entry.GlobalIndex);
+            writer.Write(entry.RecordCount);
         }
 
         writer.Flush();
@@ -276,6 +298,7 @@ internal sealed class FileCatalog
                 SegmentIndex = reader.ReadInt32(),
                 RecordIndex = reader.ReadInt32(),
                 GlobalIndex = reader.ReadInt64(),
+                RecordCount = reader.ReadInt32(),
             };
         }
 

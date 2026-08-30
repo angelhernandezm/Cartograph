@@ -84,6 +84,18 @@ public static class ArtifactFormat
     /// <summary>The explicit alignment (bytes) applied to segments, directories, and record payloads.</summary>
     public const int Alignment = 64;
 
+    /// <summary>
+    /// The largest byte length a single record may span.
+    /// </summary>
+    /// <remarks>
+    /// The on-disk directory stores record offsets and lengths as 64-bit values, so the format itself
+    /// imposes no such ceiling. The limit comes from the read path: a record is surfaced as a single
+    /// <see cref="Cartograph.ChunkLease"/> obtained from <see cref="Cartograph.IChunkSource.Read"/>,
+    /// whose length parameter is a 32-bit <see cref="int"/>. Inputs larger than this are expected to
+    /// be split across several records, which the artifact can then present as one logical object.
+    /// </remarks>
+    public const long MaxRecordLength = int.MaxValue;
+
     /// <summary>Segment descriptor flag: the segment is live in the current manifest.</summary>
     public const uint SegmentFlagLive = 0x1u;
 }

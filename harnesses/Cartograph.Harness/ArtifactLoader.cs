@@ -173,6 +173,7 @@ internal static class ArtifactLoader
 
             int verified = 0;
             int failed = 0;
+            int withoutCatalogChecksum = 0;
             long bytesVerified = 0;
             TimeSpan verifyElapsed = TimeSpan.Zero;
 
@@ -182,36 +183,58 @@ internal static class ArtifactLoader
 
                 foreach (CatalogEntry entry in catalog.Entries)
                 {
-                    using RecordLease lease = options.Async
-                        ? await artifact.ReadRecordAsync(entry.GlobalIndex).ConfigureAwait(false)
-                        : artifact.ReadRecord(entry.GlobalIndex);
+                    long actualLength = 0;
+                    XxHash3? hasher = entry.Checksum != 0 ? new XxHash3() : null;
 
-                    if (lease.Length != entry.Length)
+                    for (int piece = 0; piece < entry.RecordCount; piece++)
+                    {
+                        using RecordLease lease = options.Async
+                            ? await artifact.ReadRecordAsync(entry.GlobalIndex + piece).ConfigureAwait(false)
+                            : artifact.ReadRecord(entry.GlobalIndex + piece);
+
+                        actualLength += lease.Length;
+
+                        if (hasher is not null)
+                        {
+                            AppendSequence(hasher, lease.Sequence);
+                        }
+                    }
+
+                    if (actualLength != entry.Length)
                     {
                         failed++;
                         ConsoleReport.Error(
-                            $"length mismatch for '{entry.RelativePath}': catalog says {entry.Length}, record has {lease.Length}.");
+                            $"length mismatch for '{entry.RelativePath}': catalog says {entry.Length}, records have {actualLength}.");
                         continue;
                     }
 
-                    ulong actual = HashSequence(lease.Sequence);
-
-                    if (actual != entry.Checksum)
+                    if (hasher is not null)
                     {
-                        failed++;
-                        ConsoleReport.Error(
-                            $"checksum mismatch for '{entry.RelativePath}': expected {ConsoleReport.Checksum(entry.Checksum)}, got {ConsoleReport.Checksum(actual)}.");
-                        continue;
+                        ulong actual = hasher.GetCurrentHashAsUInt64();
+
+                        if (actual != entry.Checksum)
+                        {
+                            failed++;
+                            ConsoleReport.Error(
+                                $"checksum mismatch for '{entry.RelativePath}': expected {ConsoleReport.Checksum(entry.Checksum)}, got {ConsoleReport.Checksum(actual)}.");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // No whole-file checksum was stored, so reading each record (which the format
+                        // checksums on its own) is the integrity guarantee for this entry.
+                        withoutCatalogChecksum++;
                     }
 
                     verified++;
-                    bytesVerified += lease.Length;
+                    bytesVerified += actualLength;
                 }
 
                 verifyWatch.Stop();
                 verifyElapsed = verifyWatch.Elapsed;
 
-                ReportVerification(verified, failed, bytesVerified, verifyElapsed);
+                ReportVerification(verified, failed, withoutCatalogChecksum, bytesVerified, verifyElapsed);
             }
 
             int sourceMatches = 0;
@@ -375,6 +398,7 @@ internal static class ArtifactLoader
             [
                 entry.GlobalIndex.ToString(CultureInfo.InvariantCulture),
                 $"{entry.SegmentIndex}:{entry.RecordIndex}",
+                ConsoleReport.Count(entry.RecordCount),
                 ConsoleReport.Bytes(entry.Length),
                 ConsoleReport.Checksum(entry.Checksum),
                 entry.LastWriteUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
@@ -383,9 +407,9 @@ internal static class ArtifactLoader
         }
 
         ConsoleReport.Table(
-            ["idx", "seg:rec", "size", "xxh3", "modified (UTC)", "path"],
+            ["idx", "seg:rec", "recs", "size", "xxh3", "modified (UTC)", "path"],
             rows,
-            [true, false, true, false, false, false]);
+            [true, false, true, true, false, false, false]);
 
         if (catalog.Entries.Count > top)
         {
@@ -398,13 +422,27 @@ internal static class ArtifactLoader
     /// </summary>
     /// <param name="verified">Number of records that verified successfully</param>
     /// <param name="failed">Number of records that failed verification</param>
+    /// <param name="withoutCatalogChecksum">Number of entries that had no whole-file catalog checksum and were verified via record checksums</param>
     /// <param name="bytesVerified">Total number of payload bytes read</param>
     /// <param name="elapsed">Time taken to verify</param>
-    private static void ReportVerification(int verified, int failed, long bytesVerified, TimeSpan elapsed)
+    private static void ReportVerification(
+        int verified,
+        int failed,
+        int withoutCatalogChecksum,
+        long bytesVerified,
+        TimeSpan elapsed)
     {
         ConsoleReport.Subheading("Verification");
-        ConsoleReport.Field("Records verified", ConsoleReport.Count(verified));
-        ConsoleReport.Field("Records failed", ConsoleReport.Count(failed));
+        ConsoleReport.Field("Entries verified", ConsoleReport.Count(verified));
+        ConsoleReport.Field("Entries failed", ConsoleReport.Count(failed));
+
+        if (withoutCatalogChecksum > 0)
+        {
+            ConsoleReport.Field(
+                "No catalog checksum",
+                $"{ConsoleReport.Count(withoutCatalogChecksum)} verified via record checksums");
+        }
+
         ConsoleReport.Field("Bytes read", ConsoleReport.Bytes(bytesVerified));
         ConsoleReport.Field("Elapsed", ConsoleReport.Duration(elapsed));
 
@@ -463,18 +501,19 @@ internal static class ArtifactLoader
                 continue;
             }
 
-            if (XxHash3.HashToUInt64(onDisk) != entry.Checksum)
+            if (entry.Checksum != 0 && XxHash3.HashToUInt64(onDisk) != entry.Checksum)
             {
-                // The file changed after it was packed; that is not an artifact defect.
+                // A whole-file checksum was stored and it no longer matches: the file changed after it
+                // was packed, which is not an artifact defect.
                 skipped++;
                 continue;
             }
 
-            using RecordLease lease = useAsync
-                ? await artifact.ReadRecordAsync(entry.GlobalIndex).ConfigureAwait(false)
-                : artifact.ReadRecord(entry.GlobalIndex);
+            byte[] artifactBytes = await ReadEntryBytesAsync(artifact, entry, useAsync).ConfigureAwait(false);
 
-            if (SequenceEquals(lease.Sequence, onDisk))
+            // With no catalog checksum we cannot tell "changed on disk" from "corrupt", so compare the
+            // reassembled artifact bytes against the file directly, which is the stronger check anyway.
+            if (artifactBytes.AsSpan().SequenceEqual(onDisk))
             {
                 matches++;
             }
@@ -532,18 +571,21 @@ internal static class ArtifactLoader
                 Directory.CreateDirectory(directory);
             }
 
-            using RecordLease lease = useAsync
-                ? await artifact.ReadRecordAsync(entry.GlobalIndex).ConfigureAwait(false)
-                : artifact.ReadRecord(entry.GlobalIndex);
-
             await using FileStream stream = new(target, FileMode.Create, FileAccess.Write, FileShare.None);
 
-            foreach (ReadOnlyMemory<byte> memory in lease.Sequence)
+            for (int piece = 0; piece < entry.RecordCount; piece++)
             {
-                await stream.WriteAsync(memory).ConfigureAwait(false);
-            }
+                using RecordLease lease = useAsync
+                    ? await artifact.ReadRecordAsync(entry.GlobalIndex + piece).ConfigureAwait(false)
+                    : artifact.ReadRecord(entry.GlobalIndex + piece);
 
-            written += lease.Length;
+                foreach (ReadOnlyMemory<byte> memory in lease.Sequence)
+                {
+                    await stream.WriteAsync(memory).ConfigureAwait(false);
+                }
+
+                written += lease.Length;
+            }
         }
 
         watch.Stop();
@@ -580,6 +622,8 @@ internal static class ArtifactLoader
         ConsoleReport.Field("Length", ConsoleReport.Bytes(entry.Length));
         ConsoleReport.Blank();
 
+        // The preview only shows a prefix, so read the first piece regardless of how many the file
+        // spans. entry.Length is the true total and drives the truncation message.
         using RecordLease lease = useAsync
             ? await artifact.ReadRecordAsync(entry.GlobalIndex).ConfigureAwait(false)
             : artifact.ReadRecord(entry.GlobalIndex);
@@ -589,64 +633,60 @@ internal static class ArtifactLoader
 
         ConsoleReport.Always(Encoding.UTF8.GetString(bytes, 0, limit));
 
-        if (bytes.Length > limit)
+        if (entry.Length > limit)
         {
-            ConsoleReport.Line($"... truncated at {ConsoleReport.Bytes(limit)} of {ConsoleReport.Bytes(bytes.Length)}.");
+            ConsoleReport.Line($"... truncated at {ConsoleReport.Bytes(limit)} of {ConsoleReport.Bytes(entry.Length)}.");
         }
     }
 
     /// <summary>
-    /// Computes the XxHash3 checksum of a possibly multi-segment sequence
+    /// Appends the contents of a possibly multi-segment sequence to a running hash
     /// </summary>
+    /// <param name="hasher">Incremental hasher to append to</param>
     /// <param name="sequence">Record contents to hash</param>
-    /// <returns>The 64-bit hash of the logical byte stream</returns>
-    private static ulong HashSequence(ReadOnlySequence<byte> sequence)
+    /// <exception cref="System.ArgumentNullException"><paramref name="hasher" /> is <see langword="null" />.</exception>
+    private static void AppendSequence(XxHash3 hasher, ReadOnlySequence<byte> sequence)
     {
-        if (sequence.IsSingleSegment)
-        {
-            return XxHash3.HashToUInt64(sequence.FirstSpan);
-        }
-
-        XxHash3 hasher = new();
+        ArgumentNullException.ThrowIfNull(hasher);
 
         foreach (ReadOnlyMemory<byte> memory in sequence)
         {
             hasher.Append(memory.Span);
         }
-
-        return hasher.GetCurrentHashAsUInt64();
     }
 
     /// <summary>
-    /// Compares a record sequence against a contiguous buffer
+    /// Reads every record of an entry and concatenates them into a single contiguous buffer
     /// </summary>
-    /// <param name="sequence">Record contents, possibly split across several mapped pages</param>
-    /// <param name="other">Buffer to compare against</param>
-    /// <returns><see langword="true" /> when both hold the same bytes; otherwise <see langword="false" /></returns>
-    private static bool SequenceEquals(ReadOnlySequence<byte> sequence, ReadOnlySpan<byte> other)
+    /// <param name="artifact">Open artifact to read from</param>
+    /// <param name="entry">Catalog entry describing the file and its record range</param>
+    /// <param name="useAsync">Whether to use the asynchronous record API</param>
+    /// <returns>A buffer of exactly <see cref="CatalogEntry.Length" /> bytes holding the whole file</returns>
+    /// <remarks>
+    /// A file may span several consecutive records when it was larger than the pack's piece size, so
+    /// this stitches those pieces back together. Callers that only need a prefix, or that can stream
+    /// straight to an output, should avoid this and read the pieces directly to keep large files from
+    /// being materialized whole.
+    /// </remarks>
+    /// <exception cref="System.ArgumentNullException"><paramref name="artifact" /> or <paramref name="entry" /> is <see langword="null" />.</exception>
+    private static async ValueTask<byte[]> ReadEntryBytesAsync(Artifact artifact, CatalogEntry entry, bool useAsync)
     {
-        if (sequence.Length != other.Length)
-        {
-            return false;
-        }
+        ArgumentNullException.ThrowIfNull(artifact);
+        ArgumentNullException.ThrowIfNull(entry);
 
-        if (sequence.IsSingleSegment)
-        {
-            return sequence.FirstSpan.SequenceEqual(other);
-        }
-
+        byte[] result = new byte[entry.Length];
         int offset = 0;
 
-        foreach (ReadOnlyMemory<byte> memory in sequence)
+        for (int piece = 0; piece < entry.RecordCount; piece++)
         {
-            if (!memory.Span.SequenceEqual(other.Slice(offset, memory.Length)))
-            {
-                return false;
-            }
+            using RecordLease lease = useAsync
+                ? await artifact.ReadRecordAsync(entry.GlobalIndex + piece).ConfigureAwait(false)
+                : artifact.ReadRecord(entry.GlobalIndex + piece);
 
-            offset += memory.Length;
+            lease.Sequence.CopyTo(result.AsSpan(offset));
+            offset += (int)lease.Length;
         }
 
-        return true;
+        return result;
     }
 }

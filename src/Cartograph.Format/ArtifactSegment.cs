@@ -73,6 +73,21 @@ public sealed class ArtifactSegment
     /// <summary>The total byte length of the segment region.</summary>
     public long DataLength => (long)_descriptor.DataLength;
 
+    /// <summary>The file-relative byte offset at which this segment's region begins.</summary>
+    public long DataOffset => (long)_descriptor.DataOffset;
+
+    /// <summary>The file-relative byte offset of this segment's record directory.</summary>
+    public long DirectoryOffset => (long)_descriptor.DirectoryOffset;
+
+    /// <summary>The file-relative byte offset of this segment's record payload region.</summary>
+    public long PayloadOffset => (long)_descriptor.PayloadOffset;
+
+    /// <summary>
+    /// Whether this segment's payload region precedes its record directory, which is how segments
+    /// containing streamed records are laid out.
+    /// </summary>
+    public bool IsPayloadFirst => PayloadOffset < DirectoryOffset;
+
     /// <summary>The XxHash3 checksum recorded for the whole segment region.</summary>
     public ulong Checksum => _descriptor.Checksum;
 

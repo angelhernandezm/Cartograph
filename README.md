@@ -33,6 +33,10 @@ GC-visible working set and the bulk-buffer churn that comes from documents, deco
 serialization buffers. (It is *not* about the Large Object Heap: a 1536-dim float32 embedding is only
 ~6 KB and never reaches the 85 KB LOH threshold.)
 
+The same discipline now applies to *writing*: records appended with `AddFileRecord` are streamed
+during `Save` rather than buffered, so packing no longer scales its memory with payload size. See
+[Writing artifacts larger than memory](#writing-artifacts-larger-than-memory).
+
 ## Quickstart
 
 ```csharp
@@ -164,6 +168,41 @@ What makes "save it and reload it later" work.
 - **Per-record checksums** (XxHash3) and **bounds validation of every offset** against segment
   length — a truncated or malformed artifact produces a clean `CartographFormatException`, never an
   out-of-bounds read.
+
+### Writing artifacts larger than memory
+
+Records can be appended two ways:
+
+```csharp
+SegmentedArtifactWriter writer = new();
+SegmentBuilder segment = writer.AddSegment();
+
+segment.AddRecord(bytes);                          // buffered: held on the managed heap until Save
+segment.AddFileRecord(path);                       // streamed: read during Save, never buffered
+segment.AddFileRecord(path, offset, length);       // streamed: one byte range of a file
+```
+
+`AddFileRecord` records only the path, offset, and length. The bytes are read during `Save` through
+a single pooled 1 MiB buffer, so **packing cost is independent of total payload size** — an artifact
+covering hundreds of gigabytes is written with the same steady-state memory as one covering a few
+kilobytes.
+
+This works because the layout is derived from record *lengths* alone, which are known up front.
+
+**Segment region order.** A record's checksum lives in the segment's record directory. For buffered
+records the bytes are already in hand, so the directory is written first. A streamed record has no
+cheap checksum, so segments containing one are written **payload-first** — payload region, then
+directory — which lets a single pass both emit and checksum every record. Reading a streamed file
+twice would otherwise double the I/O. Both orders are legal: `DirectoryOffset` and `PayloadOffset`
+are independent 64-bit fields in the segment descriptor, and readers follow them rather than
+assuming an order. `ArtifactSegment.IsPayloadFirst` reports which layout a segment uses.
+
+**Size limits.** Offsets and lengths are 64-bit on disk, so an artifact has no practical size cap.
+A *single record* is capped at `ArtifactFormat.MaxRecordLength` (`int.MaxValue`, ~2.1 GB) because a
+record is surfaced as one `ChunkLease` from `IChunkSource.Read(long offset, int length)`, whose
+length is a 32-bit `int`. Inputs larger than that are split across consecutive records and presented
+by the application as one logical object — see the harness for that pattern. Exceeding the cap
+throws at `AddFileRecord`, not at open time.
 
 ## Non-goals
 

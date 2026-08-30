@@ -525,7 +525,14 @@ public sealed class Artifact : IDisposable
         {
             CopyExact(sequence, bytes.AsSpan(0, directorySize));
             ReadOnlySpan<byte> span = bytes.AsSpan(0, directorySize);
+
+            // The payload region may sit before or after the directory within the segment. When it
+            // comes first, records must stop at the directory rather than at the segment end.
+            long payloadOffset = (long)descriptor.PayloadOffset;
+            long directoryOffset = (long)descriptor.DirectoryOffset;
             long segmentEnd = (long)descriptor.DataOffset + (long)descriptor.DataLength;
+            long payloadLimit = payloadOffset < directoryOffset ? directoryOffset : segmentEnd;
+
             for (int i = 0; i < count; i++)
             {
                 ReadOnlySpan<byte> entry = span.Slice(i * ArtifactFormat.RecordEntrySize, ArtifactFormat.RecordEntrySize);
@@ -533,8 +540,15 @@ public sealed class Artifact : IDisposable
                 long length = (long)BinaryPrimitives.ReadUInt64LittleEndian(entry[8..]);
                 ulong checksum = BinaryPrimitives.ReadUInt64LittleEndian(entry[16..]);
 
-                long absolute = (long)descriptor.PayloadOffset + relOffset;
-                if (relOffset < 0 || length < 0 || length > int.MaxValue || absolute < (long)descriptor.PayloadOffset || absolute + length > segmentEnd)
+                if (length > ArtifactFormat.MaxRecordLength)
+                {
+                    throw new CartographFormatException(
+                        $"Record {i} is {length} bytes, which exceeds the {ArtifactFormat.MaxRecordLength}-byte " +
+                        "maximum a single record can be read as.");
+                }
+
+                long absolute = payloadOffset + relOffset;
+                if (relOffset < 0 || length < 0 || absolute < payloadOffset || absolute + length > payloadLimit)
                 {
                     throw new CartographFormatException($"Record {i} offset/length falls outside its segment.");
                 }
@@ -589,6 +603,13 @@ public sealed class Artifact : IDisposable
     /// Validates that all region offsets within a <see cref="SegmentDescriptor"/> are self-consistent
     /// and fall entirely within the file.
     /// </summary>
+    /// <remarks>
+    /// A segment stores its record directory and its payload region at independent offsets, so either
+    /// may come first. Buffered segments are written directory-first; segments containing streamed
+    /// records are written payload-first, which lets the writer checksum each record in the same pass
+    /// that emits it. Both orders are accepted here, provided the two regions stay inside the segment
+    /// and do not overlap.
+    /// </remarks>
     /// <param name="descriptor">The segment descriptor to validate.</param>
     /// <param name="fileLength">The total length of the artifact file in bytes.</param>
     /// <exception cref="CartographFormatException">Segment data region falls outside the file.</exception>
@@ -613,9 +634,16 @@ public sealed class Artifact : IDisposable
             throw new CartographFormatException("Segment record directory falls outside the segment.");
         }
 
-        if (payloadOffset < directoryOffset + directorySize || payloadOffset > dataEnd)
+        if (payloadOffset < dataOffset || payloadOffset > dataEnd)
         {
             throw new CartographFormatException("Segment payload region falls outside the segment.");
+        }
+
+        // Payload-first segments are bounded against the directory when each record is parsed;
+        // directory-first segments must clear the directory outright.
+        if (payloadOffset >= directoryOffset && payloadOffset < directoryOffset + directorySize)
+        {
+            throw new CartographFormatException("Segment payload region overlaps its record directory.");
         }
     }
 }

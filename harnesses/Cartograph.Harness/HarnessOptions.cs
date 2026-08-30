@@ -99,17 +99,32 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Default upper bound on the size of any individual packed file
     /// </summary>
-    public const long DefaultMaxFileSize = 64L * 1024 * 1024;
+    /// <remarks>
+    /// Streaming packs read file contents through a small pooled buffer at save time rather than
+    /// buffering them on the managed heap, so there is no longer a memory reason to cap file size.
+    /// The default is therefore unlimited; supply <c>--max-file-size</c> to impose a limit.
+    /// </remarks>
+    public const long DefaultMaxFileSize = long.MaxValue;
 
     /// <summary>
-    /// Default upper bound on the total number of payload bytes buffered while packing
+    /// Default upper bound on the total number of payload bytes packed in one run
     /// </summary>
     /// <remarks>
-    /// <see cref="SegmentedArtifactWriter" /> copies every record into managed memory before it
-    /// writes, so packing an unbounded tree would be an unbounded allocation. The cap keeps the
-    /// harness honest about that.
+    /// Because records stream from disk at save time instead of being buffered in managed memory,
+    /// packing an arbitrarily large tree no longer implies an unbounded allocation. The default is
+    /// therefore unlimited; supply <c>--max-total</c> to impose a budget.
     /// </remarks>
-    public const long DefaultMaxTotalBytes = 1L * 1024 * 1024 * 1024;
+    public const long DefaultMaxTotalBytes = long.MaxValue;
+
+    /// <summary>
+    /// Default maximum number of bytes stored in a single record
+    /// </summary>
+    /// <remarks>
+    /// Files larger than this are split across several consecutive records so that no single record
+    /// approaches <see cref="ArtifactFormat.MaxRecordLength" />, keeping each streamed piece a
+    /// comfortable size.
+    /// </remarks>
+    public const long DefaultPieceSize = 256L * 1024 * 1024;
 
     /// <summary>
     /// Default upper bound on the number of files packed in one run
@@ -172,6 +187,26 @@ internal sealed class HarnessOptions
     /// </summary>
     /// <value>Defaults to <see cref="DefaultMaxFiles" />.</value>
     public int MaxFiles { get; private set; } = DefaultMaxFiles;
+
+    /// <summary>
+    /// Gets the maximum number of bytes stored in a single record
+    /// </summary>
+    /// <value>
+    /// Files larger than this are split across consecutive records; defaults to
+    /// <see cref="DefaultPieceSize" />. Always greater than zero and never larger than
+    /// <see cref="ArtifactFormat.MaxRecordLength" />.
+    /// </value>
+    public long PieceSize { get; private set; } = DefaultPieceSize;
+
+    /// <summary>
+    /// Gets a value indicating whether the packer computes a whole-file checksum for each file
+    /// </summary>
+    /// <value>
+    /// <see langword="true" /> when <c>--checksums</c> was supplied, in which case the packer spends
+    /// an extra read pass per file; otherwise <see langword="false" /> and the catalog stores
+    /// <c>0</c> for every checksum.
+    /// </value>
+    public bool ComputeChecksums { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether reparse points are traversed
@@ -419,6 +454,27 @@ internal sealed class HarnessOptions
                     parsed.MaxFiles = maxFiles;
                     break;
 
+                case "--piece-size":
+                    if (!TryTakeSize(args, ref index, arg, out long pieceSize, out error))
+                    {
+                        return false;
+                    }
+
+                    if (pieceSize > ArtifactFormat.MaxRecordLength)
+                    {
+                        error =
+                            $"Option '{arg}' must not exceed {ArtifactFormat.MaxRecordLength} bytes " +
+                            "(the maximum size of a single record).";
+                        return false;
+                    }
+
+                    parsed.PieceSize = pieceSize;
+                    break;
+
+                case "--checksums":
+                    parsed.ComputeChecksums = true;
+                    break;
+
                 case "--follow-links":
                     parsed.FollowLinks = true;
                     break;
@@ -544,7 +600,7 @@ internal sealed class HarnessOptions
     public static void PrintUsage()
     {
         Console.WriteLine(
-            """
+            $"""
             cartograph-harness - pack a folder tree into a Cartograph artifact and read it back.
 
             USAGE
@@ -570,10 +626,16 @@ internal sealed class HarnessOptions
                                       Repeatable. Supports * and ?.
               --exclude <pattern>     Skip relative paths matching the pattern.
                                       Repeatable. Applied after --include.
-              --max-file-size <size>  Skip files larger than this. Default: 64MiB
+              --piece-size <size>     Maximum bytes per record. Files larger than this
+                                      are streamed across consecutive records.
+                                      Default: {DescribeSizeDefault(DefaultPieceSize)}
+              --checksums             Compute a whole-file XxHash3 for every file and
+                                      store it in the catalog. Doubles read I/O; off by
+                                      default. Record checksums protect integrity either way.
+              --max-file-size <size>  Skip files larger than this. Default: {DescribeSizeDefault(DefaultMaxFileSize)}
               --max-total <size>      Stop once this many payload bytes are packed.
-                                      Default: 1GiB
-              --max-files <n>         Stop after this many files. Default: 200000
+                                      Default: {DescribeSizeDefault(DefaultMaxTotalBytes)}
+              --max-files <n>         Stop after this many files. Default: {DefaultMaxFiles}
               --follow-links          Traverse symlinks and junctions. Off by default.
 
             LOADING OPTIONS
@@ -603,6 +665,16 @@ internal sealed class HarnessOptions
               2  runtime failure
               3  verification failure
             """);
+    }
+
+    /// <summary>
+    /// Renders a default size for the usage text, collapsing an unlimited default to a word
+    /// </summary>
+    /// <param name="value">Default size in bytes</param>
+    /// <returns>The word <c>unlimited</c> when <paramref name="value" /> is <see cref="long.MaxValue" />; otherwise a compact byte figure</returns>
+    private static string DescribeSizeDefault(long value)
+    {
+        return value == long.MaxValue ? "unlimited" : ConsoleReport.Bytes(value);
     }
 
     /// <summary>

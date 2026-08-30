@@ -232,6 +232,7 @@ internal static class Program
     private static void ReportPack(PackResult result)
     {
         ConsoleReport.Field("Files packed", ConsoleReport.Count(result.Catalog.Entries.Count));
+        ConsoleReport.Field("Records written", ConsoleReport.Count(result.RecordsWritten));
         ConsoleReport.Field("Payload bytes", ConsoleReport.Bytes(result.Catalog.TotalBytes));
         ConsoleReport.Field("Segments written", ConsoleReport.Count(result.SegmentCount));
         ConsoleReport.Field("Artifact size", ConsoleReport.Bytes(result.ArtifactBytes));
