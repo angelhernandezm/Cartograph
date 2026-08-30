@@ -192,7 +192,28 @@ src/Cartograph/               the mapped-memory substrate (Layer 0/1)
 src/Cartograph.Format/        artifact format: header, manifest, segments, records
 tests/Cartograph.Tests/       xUnit tests
 bench/Cartograph.Benchmarks/  BenchmarkDotNet harness (see its README)
+harnesses/Cartograph.Harness/ end-to-end console harness (see its README)
 ```
+
+## Try it end to end
+
+`harnesses/Cartograph.Harness` packs a folder tree into an artifact, closes it, reopens it from
+nothing but a path, and verifies every record against the files still on disk. It needs no
+arguments to do something useful:
+
+```bash
+dotnet run --project harnesses/Cartograph.Harness -c Release -- demo --list
+```
+
+Or point it at a real folder:
+
+```bash
+dotnet run --project harnesses/Cartograph.Harness -c Release -- roundtrip ./src --out src.ctg
+```
+
+It is also the shortest tour of the API: the harness writes its own catalog as record `0`, so
+reopening recovers the whole directory structure in a single read and then addresses any file
+directly by index.
 
 ## License
 

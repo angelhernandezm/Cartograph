@@ -1,7 +1,9 @@
 # Cartograph Benchmarks
 
-BenchmarkDotNet harness comparing the two Cartograph chunk sources (memory-mapped vs pooled
-`RandomAccess`) against naive managed baselines.
+BenchmarkDotNet harness comparing the two built-in Cartograph chunk sources (memory-mapped vs
+pooled `RandomAccess`) against naive managed baselines. A third kind, `ChunkSourceKind.Custom`,
+covers caller-supplied `IChunkSource` implementations and is not benchmarked here because its cost
+is defined entirely by the backing store.
 
 ## Running
 
