@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: RecordLease.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// A disposable handle to a single artifact record, wrapping a ChunkLease and
+// exposing the record bytes as a zero-copy ReadOnlySequence<byte>.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers;
 
 namespace Cartograph.Format;
@@ -12,8 +44,13 @@ namespace Cartograph.Format;
 /// </remarks>
 public sealed class RecordLease : IDisposable
 {
+    /// <summary>The underlying chunk lease that owns the raw memory backing this record.</summary>
     private readonly ChunkLease _chunk;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RecordLease" /> class.
+    /// </summary>
+    /// <param name="chunk">The chunk lease that holds the record's raw memory.</param>
     internal RecordLease(ChunkLease chunk)
     {
         _chunk = chunk;
@@ -35,6 +72,7 @@ public sealed class RecordLease : IDisposable
     public ReadOnlySpan<byte> FirstSpan => _chunk.Sequence.FirstSpan;
 
     /// <summary>Copies the record into a newly allocated array.</summary>
+    /// <returns>A new byte array containing a copy of all the record's bytes.</returns>
     public byte[] ToArray() => _chunk.Sequence.ToArray();
 
     /// <summary>Releases the underlying lease or pooled buffer. Safe to call more than once.</summary>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>dotnet-baseline</AssemblyName>
+    <RootNamespace>Cartograph.Baseline</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    System.IO.Hashing is referenced only so that this app verifies payloads with the same XxHash3
+    used by the Cartograph harness, keeping the verification cost comparable. There is deliberately
+    NO ProjectReference to Cartograph: this project must measure plain .NET primitives.
+  -->
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

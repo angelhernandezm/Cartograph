@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: SegmentManifest.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Represents the append-only segment manifest that lists all segment descriptors
+// and marks which are live; provides binary serialization (Write) and deserialization (Read).
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers.Binary;
 
 namespace Cartograph.Format;
@@ -8,6 +40,8 @@ namespace Cartograph.Format;
 public sealed class SegmentManifest
 {
     /// <summary>Creates a manifest over the supplied descriptors.</summary>
+    /// <param name="segments">The ordered list of segment descriptors to include in the manifest.</param>
+    /// <exception cref="System.ArgumentNullException"><paramref name="segments"/> is <c>null</c>.</exception>
     public SegmentManifest(IReadOnlyList<SegmentDescriptor> segments)
     {
         ArgumentNullException.ThrowIfNull(segments);
@@ -21,6 +55,8 @@ public sealed class SegmentManifest
     public int ByteLength => ArtifactFormat.ManifestHeaderSize + Segments.Count * ArtifactFormat.SegmentDescriptorSize;
 
     /// <summary>Serializes the manifest into <paramref name="destination"/>.</summary>
+    /// <param name="destination">The byte span to write the manifest into; must be at least <see cref="ByteLength"/> bytes long.</param>
+    /// <exception cref="System.ArgumentException">Destination is smaller than the manifest.</exception>
     public void Write(Span<byte> destination)
     {
         if (destination.Length < ByteLength)
@@ -55,6 +91,11 @@ public sealed class SegmentManifest
     /// Parses a manifest from <paramref name="source"/>, validating the magic and length. Descriptor
     /// offsets are bounds-checked separately when the owning <see cref="Artifact"/> is opened.
     /// </summary>
+    /// <param name="source">The raw bytes to parse; must begin with the manifest magic and be long enough for all descriptors.</param>
+    /// <returns>A <see cref="SegmentManifest"/> populated with the parsed descriptors.</returns>
+    /// <exception cref="CartographFormatException">Manifest is smaller than its fixed header.</exception>
+    /// <exception cref="CartographFormatException">Bad manifest magic; the manifest is corrupt or misaligned.</exception>
+    /// <exception cref="CartographFormatException">Manifest is truncated; declared segment count exceeds available bytes.</exception>
     public static SegmentManifest Read(ReadOnlySpan<byte> source)
     {
         if (source.Length < ArtifactFormat.ManifestHeaderSize)

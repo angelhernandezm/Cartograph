@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: ArtifactSegment.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Represents a single live, immutable segment within an opened Artifact, providing
+// synchronous and asynchronous zero-copy record reads with optional checksum verification.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 namespace Cartograph.Format;
 
 /// <summary>
@@ -5,11 +37,25 @@ namespace Cartograph.Format;
 /// </summary>
 public sealed class ArtifactSegment
 {
+    /// <summary>The chunk source used to read raw bytes from the artifact file.</summary>
     private readonly IChunkSource _source;
+
+    /// <summary>The on-disk descriptor for this segment, holding offsets, lengths, and the segment checksum.</summary>
     private readonly SegmentDescriptor _descriptor;
+
+    /// <summary>The parsed per-record directory (offsets, lengths, checksums).</summary>
     private readonly RecordDirectory _directory;
+
+    /// <summary>Whether to verify each record's XxHash3 checksum on read.</summary>
     private readonly bool _verifyChecksums;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ArtifactSegment" /> class.
+    /// </summary>
+    /// <param name="source">The chunk source providing access to the artifact's raw bytes.</param>
+    /// <param name="descriptor">The segment descriptor parsed from the manifest.</param>
+    /// <param name="directory">The parsed record directory for this segment.</param>
+    /// <param name="verifyChecksums">Whether to verify each record's checksum on read.</param>
     internal ArtifactSegment(IChunkSource source, SegmentDescriptor descriptor, RecordDirectory directory, bool verifyChecksums)
     {
         _source = source;
@@ -27,10 +73,28 @@ public sealed class ArtifactSegment
     /// <summary>The total byte length of the segment region.</summary>
     public long DataLength => (long)_descriptor.DataLength;
 
+    /// <summary>The file-relative byte offset at which this segment's region begins.</summary>
+    public long DataOffset => (long)_descriptor.DataOffset;
+
+    /// <summary>The file-relative byte offset of this segment's record directory.</summary>
+    public long DirectoryOffset => (long)_descriptor.DirectoryOffset;
+
+    /// <summary>The file-relative byte offset of this segment's record payload region.</summary>
+    public long PayloadOffset => (long)_descriptor.PayloadOffset;
+
+    /// <summary>
+    /// Whether this segment's payload region precedes its record directory, which is how segments
+    /// containing streamed records are laid out.
+    /// </summary>
+    public bool IsPayloadFirst => PayloadOffset < DirectoryOffset;
+
     /// <summary>The XxHash3 checksum recorded for the whole segment region.</summary>
     public ulong Checksum => _descriptor.Checksum;
 
     /// <summary>The length in bytes of the record at <paramref name="index"/>.</summary>
+    /// <param name="index">The zero-based index of the record within this segment.</param>
+    /// <returns>The byte length of the record at <paramref name="index"/>.</returns>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="index"/> is out of range.</exception>
     public int GetRecordLength(int index)
     {
         ValidateIndex(index);
@@ -38,6 +102,9 @@ public sealed class ArtifactSegment
     }
 
     /// <summary>Reads the record at <paramref name="index"/> as a zero-copy sequence, verifying its checksum.</summary>
+    /// <param name="index">The zero-based index of the record within this segment.</param>
+    /// <returns>A <see cref="RecordLease"/> wrapping the record bytes; the caller must dispose it.</returns>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="index"/> is out of range.</exception>
     /// <exception cref="CartographFormatException">The record's checksum does not match (corruption).</exception>
     public RecordLease ReadRecord(int index)
     {
@@ -50,6 +117,11 @@ public sealed class ArtifactSegment
     }
 
     /// <summary>Asynchronously reads the record at <paramref name="index"/>, verifying its checksum.</summary>
+    /// <param name="index">The zero-based index of the record within this segment.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous read.</param>
+    /// <returns>A <see cref="RecordLease"/> wrapping the record bytes; the caller must dispose it.</returns>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="index"/> is out of range.</exception>
+    /// <exception cref="CartographFormatException">The record's checksum does not match (corruption).</exception>
     public async ValueTask<RecordLease> ReadRecordAsync(int index, CancellationToken cancellationToken = default)
     {
         ValidateIndex(index);
@@ -60,6 +132,13 @@ public sealed class ArtifactSegment
         return Finish(chunk, index);
     }
 
+    /// <summary>
+    /// Optionally verifies the checksum of the chunk and wraps it in a <see cref="RecordLease"/>.
+    /// </summary>
+    /// <param name="chunk">The raw chunk lease returned from the chunk source.</param>
+    /// <param name="index">The zero-based record index, used in the exception message on failure.</param>
+    /// <returns>A <see cref="RecordLease"/> wrapping the verified chunk.</returns>
+    /// <exception cref="CartographFormatException">Record failed checksum verification (corrupt data).</exception>
     private RecordLease Finish(ChunkLease chunk, int index)
     {
         if (_verifyChecksums)
@@ -76,6 +155,11 @@ public sealed class ArtifactSegment
         return new RecordLease(chunk);
     }
 
+    /// <summary>
+    /// Throws <see cref="System.ArgumentOutOfRangeException"/> if <paramref name="index"/> is outside [0, <see cref="RecordCount"/>).
+    /// </summary>
+    /// <param name="index">The index to validate.</param>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="index"/> is out of range.</exception>
     private void ValidateIndex(int index)
     {
         if ((uint)index >= (uint)RecordCount)

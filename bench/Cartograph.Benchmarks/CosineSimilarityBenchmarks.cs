@@ -1,3 +1,35 @@
+// ============================================================================
+// Cartograph
+// File: CosineSimilarityBenchmarks.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// BenchmarkDotNet benchmarks measuring cosine-similarity scan throughput over
+// memory-mapped artifact records versus a managed heap-array baseline.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
@@ -19,15 +51,20 @@ namespace Cartograph.Benchmarks;
 [MemoryDiagnoser]
 public class CosineSimilarityBenchmarks
 {
+    /// <summary>Number of float dimensions per vector record.</summary>
     private const int Dimensions = 768;
 
     private string _path = string.Empty;
     private float[] _query = [];
     private float[][] _managed = [];
 
+    /// <summary>Gets or sets the number of vector records in the artifact.</summary>
     [Params(50_000)]
     public int RecordCount { get; set; }
 
+    /// <summary>
+    /// Writes the artifact to disk and materializes the managed baseline array.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -45,9 +82,15 @@ public class CosineSimilarityBenchmarks
         }
     }
 
+    /// <summary>Deletes the temporary artifact file created by <see cref="Setup"/>.</summary>
     [GlobalCleanup]
     public void Cleanup() => BenchmarkData.TryDelete(_path);
 
+    /// <summary>
+    /// Baseline benchmark: iterates all vectors held as managed <see cref="float"/> arrays
+    /// and returns the highest cosine-similarity score against the query vector.
+    /// </summary>
+    /// <returns>The best cosine-similarity score found in the corpus.</returns>
     [Benchmark(Baseline = true)]
     public float Managed_HeapVectors()
     {
@@ -64,6 +107,11 @@ public class CosineSimilarityBenchmarks
         return best;
     }
 
+    /// <summary>
+    /// Benchmark: opens the artifact with mapped I/O, casts each record's bytes to
+    /// <see cref="float"/> in-place, and returns the best cosine-similarity score.
+    /// </summary>
+    /// <returns>The best cosine-similarity score found in the corpus.</returns>
     [Benchmark]
     public float Mapped_CastInPlace()
     {

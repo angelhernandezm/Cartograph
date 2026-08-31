@@ -1,11 +1,50 @@
+// ============================================================================
+// Cartograph
+// File: HeaderValidationTests.cs
+// Author: Angel Hernandez (me@angelhernandezm.com)
+// Description:
+// Tests that validate ArtifactHeader parsing: correct round-trips, and clean
+// exceptions for bad magic, wrong endianness, version mismatch, and checksum errors.
+//
+// License: MIT
+// ============================================================================
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ============================================================================
+
 using System.Buffers.Binary;
 using Cartograph.Format;
 using Xunit;
 
 namespace Cartograph.Tests;
 
+/// <summary>
+/// Tests that validate <see cref="ArtifactHeader"/> parsing and error handling.
+/// </summary>
 public class HeaderValidationTests
 {
+    /// <summary>
+    /// Builds and returns a valid serialized <see cref="ArtifactHeader"/> byte buffer.
+    /// </summary>
+    /// <returns>A byte array containing a well-formed artifact header.</returns>
     private static byte[] ValidHeader()
     {
         ArtifactHeader header = new()
@@ -22,6 +61,9 @@ public class HeaderValidationTests
         return bytes;
     }
 
+    /// <summary>
+    /// Verifies that a valid header serializes and deserializes its fields correctly.
+    /// </summary>
     [Fact]
     public void ValidHeader_RoundTrips()
     {
@@ -30,6 +72,10 @@ public class HeaderValidationTests
         Assert.Equal(64ul, header.ManifestOffset);
     }
 
+    /// <summary>
+    /// Verifies that a header with a corrupted magic field throws a
+    /// <see cref="CartographFormatException"/> mentioning "magic".
+    /// </summary>
     [Fact]
     public void BadMagic_Throws()
     {
@@ -39,6 +85,10 @@ public class HeaderValidationTests
         Assert.Contains("magic", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that a header with a byte-swapped endianness marker throws a
+    /// <see cref="CartographFormatException"/> mentioning "endian".
+    /// </summary>
     [Fact]
     public void WrongEndianness_Throws()
     {
@@ -50,6 +100,10 @@ public class HeaderValidationTests
         Assert.Contains("endian", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that a header with an unsupported version number throws a
+    /// <see cref="CartographFormatException"/> mentioning "version".
+    /// </summary>
     [Fact]
     public void WrongVersion_Throws()
     {
@@ -59,6 +113,10 @@ public class HeaderValidationTests
         Assert.Contains("version", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that a header with a flipped reserved byte (covered by checksum) throws a
+    /// <see cref="CartographFormatException"/> mentioning "checksum".
+    /// </summary>
     [Fact]
     public void CorruptHeaderChecksum_Throws()
     {
@@ -69,6 +127,10 @@ public class HeaderValidationTests
         Assert.Contains("checksum", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that passing a buffer shorter than the minimum header size throws a
+    /// <see cref="CartographFormatException"/>.
+    /// </summary>
     [Fact]
     public void ShortBuffer_Throws()
     {
