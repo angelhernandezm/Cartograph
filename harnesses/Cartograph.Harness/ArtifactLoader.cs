@@ -101,6 +101,21 @@ internal sealed class LoadResult
     /// </summary>
     /// <value><see langword="true" /> when no record and no source comparison failed.</value>
     public bool Success => FailedRecords == 0 && SourceMismatches == 0;
+
+    /// <summary>
+    /// Gets the resource metrics captured while opening the artifact
+    /// </summary>
+    /// <value>The open-phase metrics, directly comparable to the .NET baseline's open phase.</value>
+    public required RunMetrics OpenMetrics { get; init; }
+
+    /// <summary>
+    /// Gets the resource metrics captured while reading and verifying every record
+    /// </summary>
+    /// <value>
+    /// The verify-phase metrics, directly comparable to the .NET baseline's verify phase, or
+    /// <see langword="null" /> when verification was disabled with <c>--no-verify</c>.
+    /// </value>
+    public RunMetrics? VerifyMetrics { get; init; }
 }
 
 /// <summary>
@@ -149,6 +164,7 @@ internal static class ArtifactLoader
 
         long fileBytes = new FileInfo(artifactPath).Length;
 
+        RunMetrics.Scope openScope = RunMetrics.Measure("open");
         Stopwatch openWatch = Stopwatch.StartNew();
 
         Artifact artifact = options.Async
@@ -156,6 +172,7 @@ internal static class ArtifactLoader
             : Artifact.Open(artifactPath, openOptions);
 
         openWatch.Stop();
+        RunMetrics openMetrics = openScope.Stop();
 
         using (artifact)
         {
@@ -176,9 +193,11 @@ internal static class ArtifactLoader
             int withoutCatalogChecksum = 0;
             long bytesVerified = 0;
             TimeSpan verifyElapsed = TimeSpan.Zero;
+            RunMetrics? verifyMetrics = null;
 
             if (options.Verify)
             {
+                RunMetrics.Scope verifyScope = RunMetrics.Measure("verify");
                 Stopwatch verifyWatch = Stopwatch.StartNew();
 
                 foreach (CatalogEntry entry in catalog.Entries)
@@ -233,6 +252,7 @@ internal static class ArtifactLoader
 
                 verifyWatch.Stop();
                 verifyElapsed = verifyWatch.Elapsed;
+                verifyMetrics = verifyScope.Stop(bytesVerified);
 
                 ReportVerification(verified, failed, withoutCatalogChecksum, bytesVerified, verifyElapsed);
             }
@@ -266,6 +286,8 @@ internal static class ArtifactLoader
                 BytesVerified = bytesVerified,
                 SourceMatches = sourceMatches,
                 SourceMismatches = sourceMismatches,
+                OpenMetrics = openMetrics,
+                VerifyMetrics = verifyMetrics,
             };
         }
     }

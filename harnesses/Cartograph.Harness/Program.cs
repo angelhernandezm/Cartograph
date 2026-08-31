@@ -92,6 +92,11 @@ internal static class Program
             return ExitSuccess;
         }
 
+        if (options.Csv)
+        {
+            RunMetrics.ReportCsvHeader();
+        }
+
         try
         {
             return options.Command switch
@@ -138,6 +143,7 @@ internal static class Program
         ReportPack(result);
 
         ConsoleReport.Always($"Wrote {artifactPath}");
+        EmitPackCsv(options, result);
         return ExitSuccess;
     }
 
@@ -155,6 +161,7 @@ internal static class Program
         LoadResult result = await ArtifactLoader.LoadAsync(options, artifactPath, compareRoot: null)
             .ConfigureAwait(false);
 
+        EmitLoadCsv(options, result);
         return Summarize(result);
     }
 
@@ -180,6 +187,8 @@ internal static class Program
         // which is the whole point of the exercise.
         LoadResult loaded = await ArtifactLoader.LoadAsync(options, artifactPath, root).ConfigureAwait(false);
 
+        EmitPackCsv(options, packed);
+        EmitLoadCsv(options, loaded);
         return Summarize(loaded);
     }
 
@@ -210,6 +219,9 @@ internal static class Program
         ReportPack(packed);
 
         LoadResult loaded = await ArtifactLoader.LoadAsync(options, artifactPath, tree.Root).ConfigureAwait(false);
+
+        EmitPackCsv(options, packed);
+        EmitLoadCsv(options, loaded);
         int exitCode = Summarize(loaded);
 
         if (options.CleanupDemo)
@@ -291,6 +303,44 @@ internal static class Program
 
         return ExitVerificationFailed;
     }
+
+    /// <summary>
+    /// Emits the pack-phase CSV line when the caller requested CSV output
+    /// </summary>
+    /// <param name="options">Parsed command line, which decides whether CSV is emitted</param>
+    /// <param name="result">Pack result carrying the metrics to emit</param>
+    private static void EmitPackCsv(HarnessOptions options, PackResult result)
+    {
+        if (options.Csv)
+        {
+            result.Metrics.ReportCsv(Label(options));
+        }
+    }
+
+    /// <summary>
+    /// Emits the open- and verify-phase CSV lines when the caller requested CSV output
+    /// </summary>
+    /// <param name="options">Parsed command line, which decides whether CSV is emitted</param>
+    /// <param name="result">Load result carrying the metrics to emit</param>
+    private static void EmitLoadCsv(HarnessOptions options, LoadResult result)
+    {
+        if (!options.Csv)
+        {
+            return;
+        }
+
+        string label = Label(options);
+        result.OpenMetrics.ReportCsv(label);
+        result.VerifyMetrics?.ReportCsv(label);
+    }
+
+    /// <summary>
+    /// Builds the CSV label identifying this program and the read strategy it used
+    /// </summary>
+    /// <param name="options">Parsed command line supplying the read strategy</param>
+    /// <returns>A label such as <c>cartograph-mapped</c></returns>
+    private static string Label(HarnessOptions options) =>
+        $"cartograph-{options.Strategy.ToString().ToLowerInvariant()}";
 
     /// <summary>
     /// Determines where the artifact should be written

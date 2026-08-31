@@ -112,6 +112,12 @@ internal sealed class PackResult
     /// </summary>
     /// <value>A short explanation, or <see langword="null" /> when the entire tree was packed.</value>
     public string? StopReason { get; init; }
+
+    /// <summary>
+    /// Gets the resource metrics captured while reading the source files and writing the artifact
+    /// </summary>
+    /// <value>The pack-phase metrics, directly comparable to the .NET baseline's pack phase.</value>
+    public required RunMetrics Metrics { get; init; }
 }
 
 /// <summary>
@@ -318,7 +324,10 @@ internal static class FolderPacker
 
         // File contents are read here, at save time. A source file that was deleted, truncated or
         // locked between the scan and now will surface as an exception rather than a silent corrupt
-        // artifact, so translate it into a clear runtime error.
+        // artifact, so translate it into a clear runtime error. This is the phase directly comparable
+        // to the .NET baseline's pack, so it is measured with the shared RunMetrics.
+        RunMetrics.Scope packScope = RunMetrics.Measure("pack");
+
         try
         {
             writer.Save(artifactPath);
@@ -332,6 +341,8 @@ internal static class FolderPacker
                 $"so the pack was aborted rather than producing a corrupt artifact: {ex.Message}",
                 ex);
         }
+
+        RunMetrics packMetrics = packScope.Stop(packedBytes);
 
         writeWatch.Stop();
 
@@ -348,6 +359,7 @@ internal static class FolderPacker
             SkippedUnreadable = skippedUnreadable,
             SkippedFiltered = skippedFiltered,
             StopReason = stopReason,
+            Metrics = packMetrics,
         };
     }
 

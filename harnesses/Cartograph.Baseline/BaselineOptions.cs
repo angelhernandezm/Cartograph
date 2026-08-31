@@ -1,10 +1,12 @@
 // ============================================================================
 // Cartograph
-// File: HarnessOptions.cs
+// File: BaselineOptions.cs
 // Author: Angel Hernandez (me@angelhernandezm.com)
 // Description:
-// Command line surface of the harness: the parsed option set, the argument
-// parser and the usage text
+// Parses the baseline command line, mirroring the Cartograph harness verbs,
+// filters and size handling so the two programs accept the same input, and
+// adds the two baseline-only switches: which .NET container to use and whether
+// to emit machine readable CSV
 //
 // License: MIT
 // ============================================================================
@@ -31,14 +33,13 @@
 // ============================================================================
 
 using System.Globalization;
-using Cartograph.Format;
 
-namespace Cartograph.Harness;
+namespace Cartograph.Baseline;
 
 /// <summary>
-/// Identifies the operation the harness was asked to perform
+/// Identifies the operation the baseline was asked to perform
 /// </summary>
-internal enum HarnessCommand
+internal enum BaselineCommand
 {
     /// <summary>
     /// Print the usage text and exit
@@ -46,12 +47,12 @@ internal enum HarnessCommand
     Help = 0,
 
     /// <summary>
-    /// Recursively pack a folder into a new artifact
+    /// Recursively pack a folder into a new container
     /// </summary>
     Pack = 1,
 
     /// <summary>
-    /// Open an existing artifact and report on it
+    /// Open an existing container and report on it
     /// </summary>
     Load = 2,
 
@@ -67,64 +68,26 @@ internal enum HarnessCommand
 }
 
 /// <summary>
-/// Selects how packed files are distributed across artifact segments
+/// Holds the fully parsed command line for a single baseline invocation
 /// </summary>
 /// <remarks>
-/// Segments are the unit of checksum and of append-only growth in the artifact format, so how files
-/// are grouped is a genuine application-level decision rather than a cosmetic one.
+/// The surface deliberately mirrors the Cartograph harness so the two programs pack and load the
+/// same trees the same way. Options that are meaningful only to the artifact format, such as the
+/// segment grouping or the read strategy, are dropped, and two switches are added: <c>--container</c>
+/// selects which plain .NET storage strategy to profile, and <c>--csv</c> requests the machine
+/// readable summary used to build the comparison table.
 /// </remarks>
-internal enum SegmentGrouping
-{
-    /// <summary>
-    /// One segment per distinct file extension
-    /// </summary>
-    Extension = 0,
-
-    /// <summary>
-    /// One segment per top-level directory beneath the packed root
-    /// </summary>
-    Directory = 1,
-
-    /// <summary>
-    /// A single segment containing every file
-    /// </summary>
-    Flat = 2,
-}
-
-/// <summary>
-/// Holds the fully parsed command line for a single harness invocation
-/// </summary>
-internal sealed class HarnessOptions
+internal sealed class BaselineOptions
 {
     /// <summary>
     /// Default upper bound on the size of any individual packed file
     /// </summary>
-    /// <remarks>
-    /// Streaming packs read file contents through a small pooled buffer at save time rather than
-    /// buffering them on the managed heap, so there is no longer a memory reason to cap file size.
-    /// The default is therefore unlimited; supply <c>--max-file-size</c> to impose a limit.
-    /// </remarks>
     public const long DefaultMaxFileSize = long.MaxValue;
 
     /// <summary>
     /// Default upper bound on the total number of payload bytes packed in one run
     /// </summary>
-    /// <remarks>
-    /// Because records stream from disk at save time instead of being buffered in managed memory,
-    /// packing an arbitrarily large tree no longer implies an unbounded allocation. The default is
-    /// therefore unlimited; supply <c>--max-total</c> to impose a budget.
-    /// </remarks>
     public const long DefaultMaxTotalBytes = long.MaxValue;
-
-    /// <summary>
-    /// Default maximum number of bytes stored in a single record
-    /// </summary>
-    /// <remarks>
-    /// Files larger than this are split across several consecutive records so that no single record
-    /// approaches <see cref="ArtifactFormat.MaxRecordLength" />, keeping each streamed piece a
-    /// comfortable size.
-    /// </remarks>
-    public const long DefaultPieceSize = 256L * 1024 * 1024;
 
     /// <summary>
     /// Default upper bound on the number of files packed in one run
@@ -135,28 +98,28 @@ internal sealed class HarnessOptions
     /// Gets the operation to perform
     /// </summary>
     /// <value>The command selected on the command line, or inferred from the first positional argument.</value>
-    public HarnessCommand Command { get; private set; } = HarnessCommand.Help;
+    public BaselineCommand Command { get; private set; } = BaselineCommand.Help;
+
+    /// <summary>
+    /// Gets the container strategy to profile
+    /// </summary>
+    /// <value>The value of <c>--container</c>; defaults to <see cref="ContainerKind.NaiveStream" />.</value>
+    public ContainerKind Container { get; private set; } = ContainerKind.NaiveStream;
 
     /// <summary>
     /// Gets the positional input path
     /// </summary>
     /// <value>
-    /// A folder for <see cref="HarnessCommand.Pack" /> and <see cref="HarnessCommand.Roundtrip" />,
-    /// an artifact file for <see cref="HarnessCommand.Load" />, and <see langword="null" /> otherwise.
+    /// A folder for <see cref="BaselineCommand.Pack" /> and <see cref="BaselineCommand.Roundtrip" />,
+    /// a container file for <see cref="BaselineCommand.Load" />, and <see langword="null" /> otherwise.
     /// </value>
     public string? InputPath { get; private set; }
 
     /// <summary>
-    /// Gets the path of the artifact to create
+    /// Gets the path of the container to create
     /// </summary>
     /// <value>The value of <c>--out</c>, or <see langword="null" /> to derive one from the input path.</value>
     public string? OutputPath { get; private set; }
-
-    /// <summary>
-    /// Gets the segment grouping strategy
-    /// </summary>
-    /// <value>The value of <c>--group-by</c>; defaults to <see cref="SegmentGrouping.Extension" />.</value>
-    public SegmentGrouping Grouping { get; private set; } = SegmentGrouping.Extension;
 
     /// <summary>
     /// Gets the include patterns applied to relative paths
@@ -189,26 +152,6 @@ internal sealed class HarnessOptions
     public int MaxFiles { get; private set; } = DefaultMaxFiles;
 
     /// <summary>
-    /// Gets the maximum number of bytes stored in a single record
-    /// </summary>
-    /// <value>
-    /// Files larger than this are split across consecutive records; defaults to
-    /// <see cref="DefaultPieceSize" />. Always greater than zero and never larger than
-    /// <see cref="ArtifactFormat.MaxRecordLength" />.
-    /// </value>
-    public long PieceSize { get; private set; } = DefaultPieceSize;
-
-    /// <summary>
-    /// Gets a value indicating whether the packer computes a whole-file checksum for each file
-    /// </summary>
-    /// <value>
-    /// <see langword="true" /> when <c>--checksums</c> was supplied, in which case the packer spends
-    /// an extra read pass per file; otherwise <see langword="false" /> and the catalog stores
-    /// <c>0</c> for every checksum.
-    /// </value>
-    public bool ComputeChecksums { get; private set; }
-
-    /// <summary>
     /// Gets a value indicating whether reparse points are traversed
     /// </summary>
     /// <value>
@@ -216,27 +159,6 @@ internal sealed class HarnessOptions
     /// <see langword="false" />, which is the default and avoids cycles.
     /// </value>
     public bool FollowLinks { get; private set; }
-
-    /// <summary>
-    /// Gets a value indicating whether the loader recomputes and compares record checksums
-    /// </summary>
-    /// <value><see langword="true" /> unless <c>--no-verify</c> was supplied.</value>
-    public bool Verify { get; private set; } = true;
-
-    /// <summary>
-    /// Gets a value indicating whether the artifact validates checksums as records are read
-    /// </summary>
-    /// <value>
-    /// Maps directly to <see cref="ArtifactOpenOptions.VerifyChecksums" />;
-    /// <see langword="true" /> unless <c>--no-record-checksums</c> was supplied.
-    /// </value>
-    public bool VerifyRecordChecksums { get; private set; } = true;
-
-    /// <summary>
-    /// Gets the read strategy used when opening the artifact
-    /// </summary>
-    /// <value>The value of <c>--strategy</c>; defaults to <see cref="ChunkSourceKind.Mapped" />.</value>
-    public ChunkSourceKind Strategy { get; private set; } = ChunkSourceKind.Mapped;
 
     /// <summary>
     /// Gets a value indicating whether the catalog listing is printed
@@ -257,18 +179,6 @@ internal sealed class HarnessOptions
     public string? ExtractDirectory { get; private set; }
 
     /// <summary>
-    /// Gets the relative path of a single record to print
-    /// </summary>
-    /// <value>The value of <c>--cat</c>, or <see langword="null" /> when no record was requested.</value>
-    public string? Cat { get; private set; }
-
-    /// <summary>
-    /// Gets a value indicating whether the asynchronous artifact API is exercised
-    /// </summary>
-    /// <value><see langword="true" /> when <c>--async</c> was supplied.</value>
-    public bool Async { get; private set; }
-
-    /// <summary>
     /// Gets a value indicating whether informational output is suppressed
     /// </summary>
     /// <value><see langword="true" /> when <c>--quiet</c> was supplied.</value>
@@ -277,14 +187,11 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Gets a value indicating whether the machine readable CSV summary is emitted
     /// </summary>
-    /// <value>
-    /// <see langword="true" /> when <c>--csv</c> was supplied. The columns match the ones the .NET
-    /// baseline prints, so the two programs can be profiled into a single table.
-    /// </value>
+    /// <value><see langword="true" /> when <c>--csv</c> was supplied.</value>
     public bool Csv { get; private set; }
 
     /// <summary>
-    /// Gets a value indicating whether the artifact produced by a demo run is deleted afterwards
+    /// Gets a value indicating whether the container produced by a demo run is deleted afterwards
     /// </summary>
     /// <value><see langword="true" /> unless <c>--keep</c> was supplied.</value>
     public bool CleanupDemo { get; private set; } = true;
@@ -296,26 +203,26 @@ internal sealed class HarnessOptions
     public int DemoFileCount { get; private set; } = 120;
 
     /// <summary>
-    /// Parses a command line into a <see cref="HarnessOptions" /> instance
+    /// Parses a command line into a <see cref="BaselineOptions" /> instance
     /// </summary>
     /// <param name="args">Raw arguments as received by the entry point</param>
     /// <param name="options">On success, the parsed options; otherwise <see langword="null" /></param>
     /// <param name="error">On failure, a human readable description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when the command line was understood; otherwise <see langword="false" /></returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="args" /> is <see langword="null" />.</exception>
-    public static bool TryParse(string[] args, out HarnessOptions? options, out string? error)
+    public static bool TryParse(string[] args, out BaselineOptions? options, out string? error)
     {
         ArgumentNullException.ThrowIfNull(args);
 
         options = null;
         error = null;
 
-        HarnessOptions parsed = new();
+        BaselineOptions parsed = new();
         int index = 0;
 
         if (args.Length == 0)
         {
-            parsed.Command = HarnessCommand.Help;
+            parsed.Command = BaselineCommand.Help;
             options = parsed;
             return true;
         }
@@ -325,22 +232,22 @@ internal sealed class HarnessOptions
         switch (first.ToLowerInvariant())
         {
             case "pack":
-                parsed.Command = HarnessCommand.Pack;
+                parsed.Command = BaselineCommand.Pack;
                 index = 1;
                 break;
 
             case "load":
-                parsed.Command = HarnessCommand.Load;
+                parsed.Command = BaselineCommand.Load;
                 index = 1;
                 break;
 
             case "roundtrip":
-                parsed.Command = HarnessCommand.Roundtrip;
+                parsed.Command = BaselineCommand.Roundtrip;
                 index = 1;
                 break;
 
             case "demo":
-                parsed.Command = HarnessCommand.Demo;
+                parsed.Command = BaselineCommand.Demo;
                 index = 1;
                 break;
 
@@ -349,13 +256,13 @@ internal sealed class HarnessOptions
             case "--help":
             case "-?":
             case "/?":
-                parsed.Command = HarnessCommand.Help;
+                parsed.Command = BaselineCommand.Help;
                 options = parsed;
                 return true;
 
             default:
                 // No verb: infer one from the shape of the first positional argument.
-                parsed.Command = Directory.Exists(first) ? HarnessCommand.Roundtrip : HarnessCommand.Load;
+                parsed.Command = Directory.Exists(first) ? BaselineCommand.Roundtrip : BaselineCommand.Load;
                 index = 0;
                 break;
         }
@@ -388,34 +295,19 @@ internal sealed class HarnessOptions
                     parsed.OutputPath = outPath;
                     break;
 
-                case "--group-by":
-                    if (!TryTakeValue(args, ref index, arg, out string? groupBy, out error))
+                case "--container":
+                    if (!TryTakeValue(args, ref index, arg, out string? container, out error))
                     {
                         return false;
                     }
 
-                    switch (groupBy!.ToLowerInvariant())
+                    if (!TryParseContainer(container!, out ContainerKind kind))
                     {
-                        case "ext":
-                        case "extension":
-                            parsed.Grouping = SegmentGrouping.Extension;
-                            break;
-
-                        case "dir":
-                        case "directory":
-                            parsed.Grouping = SegmentGrouping.Directory;
-                            break;
-
-                        case "flat":
-                        case "none":
-                            parsed.Grouping = SegmentGrouping.Flat;
-                            break;
-
-                        default:
-                            error = $"Unknown grouping '{groupBy}'; expected ext, dir or flat.";
-                            return false;
+                        error = $"Unknown container '{container}'; expected zip-store, zip-deflate, naive, naive-stream or loose.";
+                        return false;
                     }
 
+                    parsed.Container = kind;
                     break;
 
                 case "--include":
@@ -463,63 +355,8 @@ internal sealed class HarnessOptions
                     parsed.MaxFiles = maxFiles;
                     break;
 
-                case "--piece-size":
-                    if (!TryTakeSize(args, ref index, arg, out long pieceSize, out error))
-                    {
-                        return false;
-                    }
-
-                    if (pieceSize > ArtifactFormat.MaxRecordLength)
-                    {
-                        error =
-                            $"Option '{arg}' must not exceed {ArtifactFormat.MaxRecordLength} bytes " +
-                            "(the maximum size of a single record).";
-                        return false;
-                    }
-
-                    parsed.PieceSize = pieceSize;
-                    break;
-
-                case "--checksums":
-                    parsed.ComputeChecksums = true;
-                    break;
-
                 case "--follow-links":
                     parsed.FollowLinks = true;
-                    break;
-
-                case "--no-verify":
-                    parsed.Verify = false;
-                    break;
-
-                case "--no-record-checksums":
-                    parsed.VerifyRecordChecksums = false;
-                    break;
-
-                case "--strategy":
-                    if (!TryTakeValue(args, ref index, arg, out string? strategy, out error))
-                    {
-                        return false;
-                    }
-
-                    switch (strategy!.ToLowerInvariant())
-                    {
-                        case "mapped":
-                        case "mmap":
-                            parsed.Strategy = ChunkSourceKind.Mapped;
-                            break;
-
-                        case "randomaccess":
-                        case "random":
-                        case "ra":
-                            parsed.Strategy = ChunkSourceKind.RandomAccess;
-                            break;
-
-                        default:
-                            error = $"Unknown strategy '{strategy}'; expected mapped or randomaccess.";
-                            return false;
-                    }
-
                     break;
 
                 case "--list":
@@ -544,26 +381,13 @@ internal sealed class HarnessOptions
                     parsed.ExtractDirectory = extract;
                     break;
 
-                case "--cat":
-                    if (!TryTakeValue(args, ref index, arg, out string? cat, out error))
-                    {
-                        return false;
-                    }
-
-                    parsed.Cat = cat;
-                    break;
-
-                case "--async":
-                    parsed.Async = true;
+                case "--csv":
+                    parsed.Csv = true;
                     break;
 
                 case "--quiet":
                 case "-q":
                     parsed.Quiet = true;
-                    break;
-
-                case "--csv":
-                    parsed.Csv = true;
                     break;
 
                 case "--keep":
@@ -581,7 +405,7 @@ internal sealed class HarnessOptions
 
                 case "-h":
                 case "--help":
-                    parsed.Command = HarnessCommand.Help;
+                    parsed.Command = BaselineCommand.Help;
                     options = parsed;
                     return true;
 
@@ -591,15 +415,15 @@ internal sealed class HarnessOptions
             }
         }
 
-        if (parsed.Command is HarnessCommand.Pack or HarnessCommand.Roundtrip && parsed.InputPath is null)
+        if (parsed.Command is BaselineCommand.Pack or BaselineCommand.Roundtrip && parsed.InputPath is null)
         {
-            error = "A root folder is required. Try: cartograph-harness roundtrip <folder>";
+            error = "A root folder is required. Try: dotnet-baseline roundtrip <folder>";
             return false;
         }
 
-        if (parsed.Command == HarnessCommand.Load && parsed.InputPath is null)
+        if (parsed.Command == BaselineCommand.Load && parsed.InputPath is null)
         {
-            error = "An artifact path is required. Try: cartograph-harness load <artifact>";
+            error = "A container path is required. Try: dotnet-baseline load <container>";
             return false;
         }
 
@@ -614,37 +438,41 @@ internal sealed class HarnessOptions
     {
         Console.WriteLine(
             $"""
-            cartograph-harness - pack a folder tree into a Cartograph artifact and read it back.
+            dotnet-baseline - pack a folder tree using only .NET primitives and read it back.
+
+            This is the profiling counterpart to the Cartograph harness. It solves the same problem
+            with no reference to Cartograph, so the two can be compared honestly.
 
             USAGE
-              cartograph-harness demo [options]
-              cartograph-harness pack <folder> [--out <artifact>] [options]
-              cartograph-harness load <artifact> [options]
-              cartograph-harness roundtrip <folder> [--out <artifact>] [options]
-              cartograph-harness <folder>            (same as roundtrip)
-              cartograph-harness <artifact>          (same as load)
+              dotnet-baseline demo [options]
+              dotnet-baseline pack <folder> [--out <container>] [options]
+              dotnet-baseline load <container> [options]
+              dotnet-baseline roundtrip <folder> [--out <container>] [options]
+              dotnet-baseline <folder>            (same as roundtrip)
+              dotnet-baseline <container>         (same as load)
 
             COMMANDS
               demo         Generate a synthetic folder tree, then round-trip it.
-              pack         Recursively read <folder> and write a new artifact.
-              load         Open an artifact, report on it and verify its records.
+              pack         Recursively read <folder> and write a new container.
+              load         Open a container, report on it and verify its contents.
               roundtrip    pack followed by load, plus a byte-for-byte comparison
                            against the files still on disk.
 
+            CONTAINER
+              --container <mode>      zip-store | zip-deflate | naive |
+                                      naive-stream (default) | loose
+                                        zip-store     ZIP with compression disabled.
+                                        zip-deflate   ZIP with Deflate; smaller, more CPU.
+                                        naive         Flat file read whole into memory.
+                                        naive-stream  Flat file, index only, seek per record.
+                                        loose         No container; read files in place.
+
             PACKING OPTIONS
-              -o, --out <path>        Artifact to write. Default: <folder-name>.ctg
-              --group-by <mode>       ext (default) | dir | flat. Chooses how files
-                                      are distributed across artifact segments.
+              -o, --out <path>        Container to write. Default: <folder-name><ext>
               --include <pattern>     Only pack relative paths matching the pattern.
                                       Repeatable. Supports * and ?.
               --exclude <pattern>     Skip relative paths matching the pattern.
                                       Repeatable. Applied after --include.
-              --piece-size <size>     Maximum bytes per record. Files larger than this
-                                      are streamed across consecutive records.
-                                      Default: {DescribeSizeDefault(DefaultPieceSize)}
-              --checksums             Compute a whole-file XxHash3 for every file and
-                                      store it in the catalog. Doubles read I/O; off by
-                                      default. Record checksums protect integrity either way.
               --max-file-size <size>  Skip files larger than this. Default: {DescribeSizeDefault(DefaultMaxFileSize)}
               --max-total <size>      Stop once this many payload bytes are packed.
                                       Default: {DescribeSizeDefault(DefaultMaxTotalBytes)}
@@ -652,18 +480,13 @@ internal sealed class HarnessOptions
               --follow-links          Traverse symlinks and junctions. Off by default.
 
             LOADING OPTIONS
-              --strategy <kind>       mapped (default) | randomaccess
-              --async                 Use OpenAsync and ReadRecordAsync.
-              --no-verify             Do not recompute record checksums.
-              --no-record-checksums   Turn off ArtifactOpenOptions.VerifyChecksums.
-              --list                  Print the catalog.
+              --list                  Print the container listing.
               --top <n>               Rows to print with --list. Default: 20
-              --extract <dir>         Write every packed file into <dir>.
-              --cat <relative-path>   Print one record from the artifact.
+              --extract <dir>         Write every stored file into <dir>.
 
             DEMO OPTIONS
               --demo-files <n>        Files to generate. Default: 120
-              --keep                  Keep the generated tree and artifact.
+              --keep                  Keep the generated tree and container.
 
             GENERAL
               --csv                   Emit a machine readable CSV summary line per phase.
@@ -679,6 +502,51 @@ internal sealed class HarnessOptions
               2  runtime failure
               3  verification failure
             """);
+    }
+
+    /// <summary>
+    /// Maps a container name onto a <see cref="ContainerKind" />
+    /// </summary>
+    /// <param name="text">Raw container name from the command line</param>
+    /// <param name="kind">On success, the matching kind; otherwise <see cref="ContainerKind.NaiveStream" /></param>
+    /// <returns><see langword="true" /> when the name was recognised; otherwise <see langword="false" /></returns>
+    private static bool TryParseContainer(string text, out ContainerKind kind)
+    {
+        switch (text.ToLowerInvariant())
+        {
+            case "zip-store":
+            case "zipstore":
+            case "store":
+                kind = ContainerKind.ZipStore;
+                return true;
+
+            case "zip-deflate":
+            case "zipdeflate":
+            case "deflate":
+            case "zip":
+                kind = ContainerKind.ZipDeflate;
+                return true;
+
+            case "naive":
+            case "whole":
+                kind = ContainerKind.Naive;
+                return true;
+
+            case "naive-stream":
+            case "naivestream":
+            case "stream":
+                kind = ContainerKind.NaiveStream;
+                return true;
+
+            case "loose":
+            case "none":
+                kind = ContainerKind.Loose;
+                return true;
+
+            default:
+                kind = ContainerKind.NaiveStream;
+                return false;
+        }
     }
 
     /// <summary>
