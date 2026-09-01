@@ -64,6 +64,11 @@ internal enum HarnessCommand
     /// Generate a synthetic folder tree and round-trip it
     /// </summary>
     Demo = 4,
+
+    /// <summary>
+    /// Print an artifact's header and segment manifest without reading any payload
+    /// </summary>
+    Manifest = 5,
 }
 
 /// <summary>
@@ -344,6 +349,12 @@ internal sealed class HarnessOptions
                 index = 1;
                 break;
 
+            case "manifest":
+            case "info":
+                parsed.Command = HarnessCommand.Manifest;
+                index = 1;
+                break;
+
             case "help":
             case "-h":
             case "--help":
@@ -597,9 +608,10 @@ internal sealed class HarnessOptions
             return false;
         }
 
-        if (parsed.Command == HarnessCommand.Load && parsed.InputPath is null)
+        if (parsed.Command is HarnessCommand.Load or HarnessCommand.Manifest && parsed.InputPath is null)
         {
-            error = "An artifact path is required. Try: cartograph-harness load <artifact>";
+            string verb = parsed.Command == HarnessCommand.Manifest ? "manifest" : "load";
+            error = $"An artifact path is required. Try: cartograph-harness {verb} <artifact>";
             return false;
         }
 
@@ -621,6 +633,7 @@ internal sealed class HarnessOptions
               cartograph-harness pack <folder> [--out <artifact>] [options]
               cartograph-harness load <artifact> [options]
               cartograph-harness roundtrip <folder> [--out <artifact>] [options]
+              cartograph-harness manifest <artifact>
               cartograph-harness <folder>            (same as roundtrip)
               cartograph-harness <artifact>          (same as load)
 
@@ -628,6 +641,9 @@ internal sealed class HarnessOptions
               demo         Generate a synthetic folder tree, then round-trip it.
               pack         Recursively read <folder> and write a new artifact.
               load         Open an artifact, report on it and verify its records.
+              manifest     Print an artifact's header and segment manifest. Reads only
+                           a few hundred bytes, so the cost does not grow with the
+                           artifact. Also aliased as 'info'.
               roundtrip    pack followed by load, plus a byte-for-byte comparison
                            against the files still on disk.
 

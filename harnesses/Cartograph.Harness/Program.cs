@@ -30,6 +30,7 @@
 // SOFTWARE.
 // ============================================================================
 
+using System.Globalization;
 using Cartograph.Format;
 
 namespace Cartograph.Harness;
@@ -105,6 +106,7 @@ internal static class Program
                 HarnessCommand.Load => await RunLoadAsync(options).ConfigureAwait(false),
                 HarnessCommand.Roundtrip => await RunRoundtripAsync(options).ConfigureAwait(false),
                 HarnessCommand.Demo => await RunDemoAsync(options).ConfigureAwait(false),
+                HarnessCommand.Manifest => RunManifest(options),
                 _ => ExitUsage,
             };
         }
@@ -190,6 +192,89 @@ internal static class Program
         EmitPackCsv(options, packed);
         EmitLoadCsv(options, loaded);
         return Summarize(loaded);
+    }
+
+    /// <summary>
+    /// Prints an artifact's header and segment manifest without reading any record payload
+    /// </summary>
+    /// <remarks>
+    /// Deliberately structural: it reports what the artifact claims about itself, so it stays usable
+    /// on an artifact far larger than memory and on one whose payload is damaged. Use
+    /// <see cref="HarnessCommand.Load"/> to actually verify record contents.
+    /// </remarks>
+    /// <param name="options">Parsed command line</param>
+    /// <returns>A process exit code describing the outcome</returns>
+    private static int RunManifest(HarnessOptions options)
+    {
+        string artifactPath = Path.GetFullPath(options.InputPath!);
+        var file = new FileInfo(artifactPath);
+
+        if (!file.Exists)
+        {
+            ConsoleReport.Error($"artifact not found: {artifactPath}");
+            return ExitFailure;
+        }
+
+        // Checksum verification is a read-path concern; opening for structure alone must not pay it.
+        var openOptions = new ArtifactOpenOptions
+        {
+            ChunkSource = options.Strategy,
+            VerifyChecksums = false,
+        };
+
+        using Artifact artifact = Artifact.Open(artifactPath, openOptions);
+        ArtifactHeader header = artifact.Header;
+
+        ConsoleReport.Heading("HEADER");
+        ConsoleReport.Field("Artifact", artifactPath);
+        ConsoleReport.Field("File size", ConsoleReport.Bytes(file.Length));
+        ConsoleReport.Field("Format version", $"{header.VersionMajor}.{header.VersionMinor}");
+        ConsoleReport.Field("Pointer size", $"{header.PointerSize} bytes");
+        ConsoleReport.Field("Manifest offset", ConsoleReport.Count((long)header.ManifestOffset));
+        ConsoleReport.Field("Manifest length", ConsoleReport.Bytes((long)header.ManifestLength));
+        ConsoleReport.Field("Content length", ConsoleReport.Bytes((long)header.ContentLength));
+        ConsoleReport.Field("Read strategy", artifact.SourceKind.ToString().ToLowerInvariant());
+
+        // ContentLength is written before the file is closed, so a mismatch means truncation.
+        if ((long)header.ContentLength != file.Length)
+        {
+            ConsoleReport.Warn(
+                $"content length ({header.ContentLength:N0}) does not match the file size " +
+                $"({file.Length:N0}); the artifact may be truncated.");
+        }
+
+        ConsoleReport.Heading("SEGMENTS");
+
+        var rows = new List<string[]>(artifact.Segments.Count);
+        long payloadTotal = 0;
+
+        foreach (ArtifactSegment segment in artifact.Segments)
+        {
+            payloadTotal += segment.DataLength;
+            rows.Add(
+            [
+                segment.SegmentId.ToString(CultureInfo.InvariantCulture),
+                ConsoleReport.Count(segment.RecordCount),
+                ConsoleReport.Bytes(segment.DataLength),
+                ConsoleReport.Count(segment.DataOffset),
+                ConsoleReport.Count(segment.DirectoryOffset),
+                ConsoleReport.Count(segment.PayloadOffset),
+                segment.IsPayloadFirst ? "payload-first" : "directory-first",
+                ConsoleReport.Checksum(segment.Checksum),
+            ]);
+        }
+
+        ConsoleReport.Table(
+            ["id", "records", "payload", "data@", "dir@", "payload@", "layout", "checksum"],
+            rows,
+            [true, true, true, true, true, true, false, false]);
+
+        ConsoleReport.Blank();
+        ConsoleReport.Field("Live segments", ConsoleReport.Count(artifact.Segments.Count));
+        ConsoleReport.Field("Records", ConsoleReport.Count(artifact.RecordCount));
+        ConsoleReport.Field("Payload", ConsoleReport.Bytes(payloadTotal));
+
+        return ExitSuccess;
     }
 
     /// <summary>
