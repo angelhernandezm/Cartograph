@@ -169,6 +169,23 @@ What makes "save it and reload it later" work.
   length — a truncated or malformed artifact produces a clean `CartographFormatException`, never an
   out-of-bounds read.
 
+### `Cartograph.Catalog` — packing a folder tree into an artifact
+
+`Cartograph` and `Cartograph.Format` deliberately know nothing about files: they store records, not
+paths. `Cartograph.Catalog` adds that layer.
+
+- **`FileCatalog`** — a compact, versioned directory of `CatalogEntry` records (relative path,
+  length, record span, timestamp, optional whole-file XxHash3). By convention it is written as the
+  single record of segment 0, so reopening an artifact recovers the entire tree in one read.
+- **`CatalogedArtifact`** — a read-only facade that opens an artifact, validates its catalog, and
+  resolves a path to the records backing it. It can stream a file with `ForEachChunk`/`CopyTo`,
+  reconstruct it on disk with `ExtractTo`, read a bounded `ReadPrefix` for previewing, and `Verify`
+  a file against its stored checksum.
+
+Files larger than the piece size span consecutive records, which the catalog records as a
+`[GlobalIndex, GlobalIndex + RecordCount)` span, so extraction stays streaming and never
+materializes a whole file in memory.
+
 ### Writing artifacts larger than memory
 
 Records can be appended two ways:
@@ -222,6 +239,9 @@ RAG over corpora larger than RAM is the first intended *demo*, not the definitio
 ## Requirements
 
 - .NET 10 SDK (targets `net10.0`).
+- To run the GTK explorer on Linux, GTK4 at runtime (`libgtk-4-1` on Debian/Ubuntu, `gtk4` on
+  Fedora/Arch). The Windows Forms explorer targets `net10.0-windows` and builds on Windows only;
+  every other project is fully cross-platform.
 
 ## Layout
 
@@ -229,9 +249,43 @@ RAG over corpora larger than RAM is the first intended *demo*, not the definitio
 Cartograph.sln
 src/Cartograph/               the mapped-memory substrate (Layer 0/1)
 src/Cartograph.Format/        artifact format: header, manifest, segments, records
+src/Cartograph.Catalog/       file catalog: pack and address a folder tree inside an artifact
+samples/Cartograph.Explorer.Core/      UI-agnostic explorer engine shared by both front ends
+samples/Cartograph.Explorer.WinForms/  Windows Forms artifact explorer
+samples/Cartograph.Explorer.Gtk/       GTK4 artifact explorer for Linux
 tests/Cartograph.Tests/       xUnit tests
 bench/Cartograph.Benchmarks/  BenchmarkDotNet harness (see its README)
 harnesses/Cartograph.Harness/ end-to-end console harness (see its README)
+```
+
+## Explorers: many processes, one mapping
+
+`samples/` contains two GUI applications that open an artifact and let you browse, preview, verify
+and extract any file inside it. They exist to make Cartograph's defining property visible: **any
+number of processes can open the same artifact at once, and the operating system backs every one of
+those mappings with a single set of physical pages.**
+
+Both applications are deliberately built without a single-instance guard. Press **New instance** and
+another process starts on the same file; each window then lists its live peers and its own working
+set, so the sharing is observable rather than merely asserted.
+
+All behaviour lives in `Cartograph.Explorer.Core`, which has no UI dependency at all. The two front
+ends differ only in how they draw.
+
+```bash
+# Windows
+dotnet run --project samples/Cartograph.Explorer.WinForms -c Release -- path/to/artifact.ctg
+
+# Linux (needs GTK4 at runtime: apt install libgtk-4-1)
+dotnet run --project samples/Cartograph.Explorer.Gtk -c Release -- path/to/artifact.ctg
+```
+
+The GTK front end binds the system GTK4 libraries through GirCore, so the NuGet package carries no
+native payload and the distro's `libgtk-4.so.1` is used. To run it on a machine without the .NET SDK
+installed, publish it self-contained:
+
+```bash
+dotnet publish samples/Cartograph.Explorer.Gtk -c Release -r linux-x64 --self-contained
 ```
 
 ## Try it end to end

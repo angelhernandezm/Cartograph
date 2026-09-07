@@ -48,8 +48,7 @@ namespace Cartograph.Format;
 /// is appended. That is what allows a forward-only source of unknown size, such as an HTTP response
 /// body, to be ingested directly into an artifact.
 /// </remarks>
-public sealed class StreamingSegment : IDisposable
-{
+public sealed class StreamingSegment : IDisposable {
     /// <summary>The size of the pooled staging buffer used to pump stream-backed records.</summary>
     private const int CopyBufferSize = 1024 * 1024;
 
@@ -77,17 +76,20 @@ public sealed class StreamingSegment : IDisposable
     /// <param name="writer">The writer that owns this segment.</param>
     /// <param name="id">The stable numeric identifier for this segment.</param>
     /// <param name="dataOffset">The file-relative offset at which the segment's data region begins.</param>
-    internal StreamingSegment(StreamingArtifactWriter writer, uint id, long dataOffset)
-    {
+    internal StreamingSegment(StreamingArtifactWriter writer, uint id, long dataOffset) {
         _writer = writer;
         Id = id;
         _dataOffset = dataOffset;
     }
 
     /// <summary>The stable numeric identifier assigned to this segment.</summary>
-    public uint Id { get; }
+    /// <value>The stable numeric identifier assigned to this segment.</value>
+    public uint Id {
+        get;
+    }
 
     /// <summary>The number of records appended so far.</summary>
+    /// <value>The number of records appended so far.</value>
     public int RecordCount => _entries.Count;
 
     /// <summary>Appends a record whose bytes are already in memory, writing them through immediately.</summary>
@@ -95,12 +97,10 @@ public sealed class StreamingSegment : IDisposable
     /// <returns>The zero-based index of the appended record within this segment.</returns>
     /// <exception cref="System.InvalidOperationException">The segment has already been completed.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="data"/> is longer than <see cref="ArtifactFormat.MaxRecordLength"/>.</exception>
-    public int AppendRecord(ReadOnlySpan<byte> data)
-    {
+    public int AppendRecord(ReadOnlySpan<byte> data) {
         EnsureOpen();
 
-        if (data.Length > ArtifactFormat.MaxRecordLength)
-        {
+        if (data.Length > ArtifactFormat.MaxRecordLength) {
             throw new ArgumentOutOfRangeException(
                 nameof(data),
                 data.Length,
@@ -126,8 +126,7 @@ public sealed class StreamingSegment : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
     /// <exception cref="System.InvalidOperationException">The segment has already been completed.</exception>
     /// <exception cref="System.InvalidOperationException">The source produced more than <see cref="ArtifactFormat.MaxRecordLength"/> bytes.</exception>
-    public int AppendRecord(Stream source)
-    {
+    public int AppendRecord(Stream source) {
         ArgumentNullException.ThrowIfNull(source);
         EnsureOpen();
 
@@ -136,20 +135,16 @@ public sealed class StreamingSegment : IDisposable
         long length = 0;
 
         byte[] scratch = ArrayPool<byte>.Shared.Rent(CopyBufferSize);
-        try
-        {
+        try {
             int read;
-            while ((read = source.Read(scratch, 0, scratch.Length)) > 0)
-            {
+            while ((read = source.Read(scratch, 0, scratch.Length)) > 0) {
                 length = CheckedAdd(length, read);
                 ReadOnlySpan<byte> chunk = scratch.AsSpan(0, read);
                 _writer.WriteRaw(chunk);
                 _hasher.Append(chunk);
                 recordHasher.Append(chunk);
             }
-        }
-        finally
-        {
+        } finally {
             ArrayPool<byte>.Shared.Return(scratch);
         }
 
@@ -167,8 +162,7 @@ public sealed class StreamingSegment : IDisposable
     /// <exception cref="System.InvalidOperationException">The segment has already been completed.</exception>
     /// <exception cref="System.InvalidOperationException">The source produced more than <see cref="ArtifactFormat.MaxRecordLength"/> bytes.</exception>
     /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was signalled.</exception>
-    public async ValueTask<int> AppendRecordAsync(Stream source, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask<int> AppendRecordAsync(Stream source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
         EnsureOpen();
 
@@ -177,20 +171,16 @@ public sealed class StreamingSegment : IDisposable
         long length = 0;
 
         byte[] scratch = ArrayPool<byte>.Shared.Rent(CopyBufferSize);
-        try
-        {
+        try {
             int read;
-            while ((read = await source.ReadAsync(scratch.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
-            {
+            while ((read = await source.ReadAsync(scratch.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0) {
                 length = CheckedAdd(length, read);
                 ReadOnlyMemory<byte> chunk = scratch.AsMemory(0, read);
                 await _writer.WriteRawAsync(chunk, cancellationToken).ConfigureAwait(false);
                 _hasher.Append(chunk.Span);
                 recordHasher.Append(chunk.Span);
             }
-        }
-        finally
-        {
+        } finally {
             ArrayPool<byte>.Shared.Return(scratch);
         }
 
@@ -207,8 +197,7 @@ public sealed class StreamingSegment : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="write"/> is <c>null</c>.</exception>
     /// <exception cref="System.InvalidOperationException">The segment has already been completed.</exception>
     /// <exception cref="System.InvalidOperationException">The callback produced more than <see cref="ArtifactFormat.MaxRecordLength"/> bytes.</exception>
-    public int AppendRecord(Action<IBufferWriter<byte>> write)
-    {
+    public int AppendRecord(Action<IBufferWriter<byte>> write) {
         ArgumentNullException.ThrowIfNull(write);
         EnsureOpen();
 
@@ -227,8 +216,7 @@ public sealed class StreamingSegment : IDisposable
     /// owning writer. No further records may be appended afterwards.
     /// </summary>
     /// <exception cref="System.InvalidOperationException">The segment has already been completed.</exception>
-    public void Complete()
-    {
+    public void Complete() {
         EnsureOpen();
 
         // The payload region ends aligned, so the directory begins exactly at the current position.
@@ -236,8 +224,7 @@ public sealed class StreamingSegment : IDisposable
         _writer.PadTo(directoryOffset, _hasher);
 
         Span<byte> entry = stackalloc byte[ArtifactFormat.RecordEntrySize];
-        foreach (RecordEntry record in _entries)
-        {
+        foreach (RecordEntry record in _entries) {
             BinaryPrimitives.WriteUInt64LittleEndian(entry[0..], (ulong)record.RelativeOffset);
             BinaryPrimitives.WriteUInt64LittleEndian(entry[8..], (ulong)record.Length);
             BinaryPrimitives.WriteUInt64LittleEndian(entry[16..], record.Checksum);
@@ -245,8 +232,7 @@ public sealed class StreamingSegment : IDisposable
             _hasher.Append(entry);
         }
 
-        SegmentDescriptor descriptor = new()
-        {
+        SegmentDescriptor descriptor = new() {
             SegmentId = Id,
             Flags = ArtifactFormat.SegmentFlagLive,
             DataOffset = (ulong)_dataOffset,
@@ -262,10 +248,8 @@ public sealed class StreamingSegment : IDisposable
     }
 
     /// <summary>Closes the segment if it is still open, so <c>using</c> blocks publish it.</summary>
-    public void Dispose()
-    {
-        if (!_completed && !_abandoned)
-        {
+    public void Dispose() {
+        if (!_completed && !_abandoned) {
             Complete();
         }
     }
@@ -278,15 +262,12 @@ public sealed class StreamingSegment : IDisposable
 
     /// <summary>Throws if this segment can no longer accept operations.</summary>
     /// <exception cref="System.InvalidOperationException">The segment has been completed or abandoned.</exception>
-    private void EnsureOpen()
-    {
-        if (_completed)
-        {
+    private void EnsureOpen() {
+        if (_completed) {
             throw new InvalidOperationException("The segment has already been completed.");
         }
 
-        if (_abandoned)
-        {
+        if (_abandoned) {
             throw new InvalidOperationException("The owning writer was disposed before this segment was completed.");
         }
     }
@@ -299,11 +280,9 @@ public sealed class StreamingSegment : IDisposable
     /// <param name="read">The number of bytes just produced by the source.</param>
     /// <returns>The new running total.</returns>
     /// <exception cref="System.InvalidOperationException">The running total exceeds <see cref="ArtifactFormat.MaxRecordLength"/>.</exception>
-    private static long CheckedAdd(long length, int read)
-    {
+    private static long CheckedAdd(long length, int read) {
         long total = length + read;
-        if (total > ArtifactFormat.MaxRecordLength)
-        {
+        if (total > ArtifactFormat.MaxRecordLength) {
             throw new InvalidOperationException(
                 $"A single record cannot exceed {ArtifactFormat.MaxRecordLength} bytes; " +
                 "split the input across multiple records.");
@@ -320,8 +299,7 @@ public sealed class StreamingSegment : IDisposable
     /// <param name="length">The record's payload length in bytes.</param>
     /// <param name="checksum">The XxHash3 checksum of the record's payload.</param>
     /// <returns>The zero-based index of the appended record within this segment.</returns>
-    private int CloseRecord(long relativeOffset, long length, ulong checksum)
-    {
+    private int CloseRecord(long relativeOffset, long length, ulong checksum) {
         _entries.Add(new RecordEntry(relativeOffset, length, checksum));
         _writer.PadTo(Platform.AlignUp(_writer.Position, ArtifactFormat.Alignment), _hasher);
         return _entries.Count - 1;
@@ -333,15 +311,17 @@ public sealed class StreamingSegment : IDisposable
     /// <param name="relativeOffset">The record's offset relative to the segment payload region.</param>
     /// <param name="length">The record's payload length in bytes.</param>
     /// <param name="checksum">The XxHash3 checksum of the record's payload.</param>
-    private readonly struct RecordEntry(long relativeOffset, long length, ulong checksum)
-    {
+    private readonly struct RecordEntry(long relativeOffset, long length, ulong checksum) {
         /// <summary>The record's offset relative to the start of the segment payload region.</summary>
+        /// <value>The record's offset relative to the start of the segment payload region.</value>
         public long RelativeOffset { get; } = relativeOffset;
 
         /// <summary>The record's payload length in bytes.</summary>
+        /// <value>The record's payload length in bytes.</value>
         public long Length { get; } = length;
 
         /// <summary>The XxHash3 checksum of the record's payload.</summary>
+        /// <value>The XxHash3 checksum of the record's payload.</value>
         public ulong Checksum { get; } = checksum;
     }
 }

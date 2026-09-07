@@ -41,8 +41,9 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Packs files into a ZIP archive and reads them back through the framework decompressor
 /// </summary>
-/// <remarks>
-/// <para>
+/// <param name="store"><see langword="true" /> to write entries uncompressed; <see langword="false" /> to compress them
+/// with Deflate at <see cref="System.IO.Compression.CompressionLevel.Optimal" /></param>
+/// <remarks><para>
 /// This is the container a developer reaches for when a single portable file is wanted and the
 /// standard library is the only dependency allowed. Two modes are offered because they answer two
 /// different questions. <see cref="ContainerKind.ZipStore" /> writes every entry with compression
@@ -57,14 +58,8 @@ namespace Cartograph.Baseline;
 /// Because a ZIP central directory records only a CRC-32, the XxHash3 computed at pack time is
 /// stored in each entry's comment so that the reader can hand it back and the verification stays
 /// identical to the other container kinds.
-/// </para>
-/// </remarks>
-/// <param name="store">
-/// <see langword="true" /> to write entries uncompressed; <see langword="false" /> to compress them
-/// with Deflate at <see cref="System.IO.Compression.CompressionLevel.Optimal" />
-/// </param>
-internal sealed class ZipContainer(bool store) : BaselineContainer
-{
+/// </para></remarks>
+internal sealed class ZipContainer(bool store) : BaselineContainer {
     /// <summary>
     /// Size of the buffer used when copying file contents into an archive entry
     /// </summary>
@@ -83,8 +78,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
 
     /// <inheritdoc />
     /// <exception cref="System.ArgumentNullException"><paramref name="files" /> is <see langword="null" />.</exception>
-    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files)
-    {
+    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files) {
         ArgumentNullException.ThrowIfNull(files);
 
         RunMetrics.Scope scope = RunMetrics.Measure("pack");
@@ -94,20 +88,15 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
         long payloadBytes = 0;
 
         using (FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.None))
-        using (ZipArchive archive = new(stream, ZipArchiveMode.Create))
-        {
+        using (ZipArchive archive = new(stream, ZipArchiveMode.Create)) {
             byte[] buffer = new byte[CopyBufferSize];
 
-            foreach (SourceFile file in files)
-            {
+            foreach (SourceFile file in files) {
                 FileStream? input = null;
 
-                try
-                {
+                try {
                     input = new FileStream(file.FullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
+                } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                     ConsoleReport.Warn($"skipping '{file.RelativePath}': {ex.Message}");
                     continue;
                 }
@@ -115,16 +104,14 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
                 XxHash3 hasher = new();
                 long written = 0;
 
-                using (input)
-                {
+                using (input) {
                     ZipArchiveEntry entry = archive.CreateEntry(file.RelativePath, level);
                     entry.LastWriteTime = new DateTimeOffset(file.LastWriteUtc, TimeSpan.Zero);
 
                     using Stream target = entry.Open();
                     int read;
 
-                    while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
-                    {
+                    while ((read = input.Read(buffer, 0, buffer.Length)) > 0) {
                         target.Write(buffer, 0, read);
                         hasher.Append(buffer.AsSpan(0, read));
                         written += read;
@@ -135,8 +122,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
                     entry.Comment = hasher.GetCurrentHashAsUInt64().ToString("x16", CultureInfo.InvariantCulture);
                 }
 
-                entries.Add(new BaselineEntry
-                {
+                entries.Add(new BaselineEntry {
                     RelativePath = file.RelativePath,
                     Length = written,
                     LastWriteUtcTicks = file.LastWriteUtc.Ticks,
@@ -150,8 +136,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
 
         RunMetrics metrics = scope.Stop(payloadBytes);
 
-        return new BaselinePackResult
-        {
+        return new BaselinePackResult {
             ContainerPath = path,
             FileCount = entries.Count,
             PayloadBytes = payloadBytes,
@@ -161,20 +146,16 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
     }
 
     /// <inheritdoc />
-    public override ContainerReader Open(string path, out RunMetrics metrics)
-    {
+    public override ContainerReader Open(string path, out RunMetrics metrics) {
         RunMetrics.Scope scope = RunMetrics.Measure("open");
 
         ZipArchive archive = ZipFile.OpenRead(path);
 
-        try
-        {
+        try {
             List<BaselineEntry> entries = new(archive.Entries.Count);
 
-            foreach (ZipArchiveEntry entry in archive.Entries)
-            {
-                entries.Add(new BaselineEntry
-                {
+            foreach (ZipArchiveEntry entry in archive.Entries) {
+                entries.Add(new BaselineEntry {
                     RelativePath = entry.FullName,
                     Length = entry.Length,
                     LastWriteUtcTicks = entry.LastWriteTime.UtcDateTime.Ticks,
@@ -186,9 +167,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
             ContainerReader reader = new ZipReader(archive, entries);
             metrics = scope.Stop();
             return reader;
-        }
-        catch
-        {
+        } catch {
             archive.Dispose();
             throw;
         }
@@ -207,8 +186,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
     /// </summary>
     /// <param name="archive">Open archive positioned over the container</param>
     /// <param name="entries">Entries describing the stored files, ordered to match the archive</param>
-    private sealed class ZipReader(ZipArchive archive, List<BaselineEntry> entries) : ContainerReader
-    {
+    private sealed class ZipReader(ZipArchive archive, List<BaselineEntry> entries) : ContainerReader {
         /// <summary>
         /// Open archive whose entries are read on demand
         /// </summary>
@@ -218,8 +196,7 @@ internal sealed class ZipContainer(bool store) : BaselineContainer
         public override IReadOnlyList<BaselineEntry> Entries { get; } = entries;
 
         /// <inheritdoc />
-        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch)
-        {
+        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch) {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Entries.Count);
 

@@ -39,8 +39,7 @@ namespace Cartograph.Tests;
 /// Tests that records streamed from disk round-trip identically to buffered records, that segments
 /// holding them are laid out payload-first, and that oversized records are rejected on append.
 /// </summary>
-public class StreamingRecordTests
-{
+public class StreamingRecordTests {
     /// <summary>
     /// Verifies that a whole file appended with <see cref="SegmentBuilder.AddFileRecord(string)"/>
     /// reads back byte-for-byte, under both chunk source kinds.
@@ -49,8 +48,7 @@ public class StreamingRecordTests
     [Theory]
     [InlineData(ChunkSourceKind.Mapped)]
     [InlineData(ChunkSourceKind.RandomAccess)]
-    public void FileRecord_RoundTripsIdentically(ChunkSourceKind kind)
-    {
+    public void FileRecord_RoundTripsIdentically(ChunkSourceKind kind) {
         byte[] content = TestArtifacts.Pattern(9001, 3);
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
@@ -63,7 +61,9 @@ public class StreamingRecordTests
         writer.AddSegment().AddFileRecord(source);
         writer.Save(path);
 
-        ArtifactOpenOptions options = new() { ChunkSource = kind };
+        ArtifactOpenOptions options = new() {
+            ChunkSource = kind
+        };
         using Artifact artifact = Artifact.Open(path, options);
 
         Assert.Equal(1, artifact.RecordCount);
@@ -76,8 +76,7 @@ public class StreamingRecordTests
     /// segment of buffered records keeps the directory-first layout.
     /// </summary>
     [Fact]
-    public void StreamedSegment_IsLaidOutPayloadFirst()
-    {
+    public void StreamedSegment_IsLaidOutPayloadFirst() {
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
         File.WriteAllBytes(source, TestArtifacts.Pattern(512, 11));
@@ -101,8 +100,7 @@ public class StreamingRecordTests
     /// produce artifacts whose records are indistinguishable to a reader.
     /// </summary>
     [Fact]
-    public void StreamedAndBuffered_ProduceEquivalentRecords()
-    {
+    public void StreamedAndBuffered_ProduceEquivalentRecords() {
         byte[] content = TestArtifacts.Pattern(20_000, 42);
 
         string source = TestArtifacts.NewTempPath();
@@ -133,8 +131,7 @@ public class StreamingRecordTests
     /// which is how inputs larger than <see cref="ArtifactFormat.MaxRecordLength"/> are stored.
     /// </summary>
     [Fact]
-    public void ChunkedFile_ReassemblesToOriginal()
-    {
+    public void ChunkedFile_ReassemblesToOriginal() {
         const int ChunkSize = 3000;
         byte[] content = TestArtifacts.Pattern(10_000, 77);
 
@@ -147,8 +144,7 @@ public class StreamingRecordTests
 
         SegmentedArtifactWriter writer = new();
         SegmentBuilder segment = writer.AddSegment();
-        for (long offset = 0; offset < content.Length; offset += ChunkSize)
-        {
+        for (long offset = 0; offset < content.Length; offset += ChunkSize) {
             long length = Math.Min(ChunkSize, content.Length - offset);
             segment.AddFileRecord(source, offset, length);
         }
@@ -159,8 +155,7 @@ public class StreamingRecordTests
         Assert.Equal(4, artifact.RecordCount);
 
         using MemoryStream reassembled = new();
-        for (int i = 0; i < artifact.RecordCount; i++)
-        {
+        for (int i = 0; i < artifact.RecordCount; i++) {
             using RecordLease lease = artifact.ReadRecord(i);
             reassembled.Write(lease.ToArray());
         }
@@ -172,8 +167,7 @@ public class StreamingRecordTests
     /// Verifies that buffered and streamed records can be interleaved within a single segment.
     /// </summary>
     [Fact]
-    public void MixedRecords_InOneSegment_RoundTrip()
-    {
+    public void MixedRecords_InOneSegment_RoundTrip() {
         byte[] buffered = TestArtifacts.Pattern(300, 9);
         byte[] fileContent = TestArtifacts.Pattern(700, 21);
 
@@ -194,18 +188,15 @@ public class StreamingRecordTests
         using Artifact artifact = Artifact.Open(path);
         Assert.Equal(3, artifact.RecordCount);
 
-        using (RecordLease first = artifact.ReadRecord(0))
-        {
+        using (RecordLease first = artifact.ReadRecord(0)) {
             Assert.Equal(buffered, first.ToArray());
         }
 
-        using (RecordLease second = artifact.ReadRecord(1))
-        {
+        using (RecordLease second = artifact.ReadRecord(1)) {
             Assert.Equal(fileContent, second.ToArray());
         }
 
-        using (RecordLease third = artifact.ReadRecord(2))
-        {
+        using (RecordLease third = artifact.ReadRecord(2)) {
             Assert.Equal(buffered, third.ToArray());
         }
     }
@@ -214,8 +205,7 @@ public class StreamingRecordTests
     /// Verifies that an empty file streams as a zero-length record.
     /// </summary>
     [Fact]
-    public void EmptyFileRecord_RoundTrips()
-    {
+    public void EmptyFileRecord_RoundTrips() {
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
         File.WriteAllBytes(source, []);
@@ -237,8 +227,7 @@ public class StreamingRecordTests
     /// fails immediately, rather than producing an artifact that cannot be opened.
     /// </summary>
     [Fact]
-    public void OversizedRecord_IsRejectedOnAppend()
-    {
+    public void OversizedRecord_IsRejectedOnAppend() {
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
         File.WriteAllBytes(source, TestArtifacts.Pattern(16, 1));
@@ -256,8 +245,7 @@ public class StreamingRecordTests
     /// Verifies that a range extending past the end of the backing file is rejected on append.
     /// </summary>
     [Fact]
-    public void RangePastEndOfFile_IsRejectedOnAppend()
-    {
+    public void RangePastEndOfFile_IsRejectedOnAppend() {
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
         File.WriteAllBytes(source, TestArtifacts.Pattern(100, 1));
@@ -272,8 +260,7 @@ public class StreamingRecordTests
     /// Verifies that appending a record from a missing file fails with a clear exception.
     /// </summary>
     [Fact]
-    public void MissingFile_IsRejectedOnAppend()
-    {
+    public void MissingFile_IsRejectedOnAppend() {
         SegmentedArtifactWriter writer = new();
         SegmentBuilder segment = writer.AddSegment();
 
@@ -285,8 +272,7 @@ public class StreamingRecordTests
     /// artifact is reopened with checksum verification enabled.
     /// </summary>
     [Fact]
-    public void StreamedSegment_ChecksumsVerifyOnRead()
-    {
+    public void StreamedSegment_ChecksumsVerifyOnRead() {
         string source = TestArtifacts.NewTempPath();
         using TempFile sourceTemp = new(source);
         File.WriteAllBytes(source, TestArtifacts.Pattern(5000, 13));
@@ -298,18 +284,18 @@ public class StreamingRecordTests
         writer.AddSegment().AddFileRecord(source).AddFileRecord(source, 100, 400);
         writer.Save(path);
 
-        ArtifactOpenOptions options = new() { VerifyChecksums = true };
+        ArtifactOpenOptions options = new() {
+            VerifyChecksums = true
+        };
         using Artifact artifact = Artifact.Open(path, options);
 
         Assert.Equal(2, artifact.RecordCount);
 
-        using (RecordLease whole = artifact.ReadRecord(0))
-        {
+        using (RecordLease whole = artifact.ReadRecord(0)) {
             Assert.Equal(5000, whole.Length);
         }
 
-        using (RecordLease slice = artifact.ReadRecord(1))
-        {
+        using (RecordLease slice = artifact.ReadRecord(1)) {
             Assert.Equal(400, slice.Length);
             Assert.Equal(TestArtifacts.Pattern(5000, 13).AsSpan(100, 400).ToArray(), slice.ToArray());
         }

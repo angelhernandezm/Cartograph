@@ -35,8 +35,7 @@ using Cartograph.Format;
 namespace Cartograph.Tests;
 
 /// <summary>Shared helpers for building temporary artifacts on disk.</summary>
-internal static class TestArtifacts
-{
+internal static class TestArtifacts {
     /// <summary>
     /// Returns a new unique temporary file path with the <c>.ctg</c> extension.
     /// </summary>
@@ -44,13 +43,13 @@ internal static class TestArtifacts
     public static string NewTempPath() => Path.Combine(Path.GetTempPath(), $"cartograph-{Guid.NewGuid():N}.ctg");
 
     /// <summary>Writes a single-segment artifact with the given records and returns its path.</summary>
-    public static string WriteSingleSegment(IReadOnlyList<byte[]> records)
-    {
+    /// <param name="records">The records to place, in order, into the artifact's only segment.</param>
+    /// <returns>An absolute path to the newly written artifact.</returns>
+    public static string WriteSingleSegment(IReadOnlyList<byte[]> records) {
         string path = NewTempPath();
         SegmentedArtifactWriter writer = new();
         SegmentBuilder segment = writer.AddSegment();
-        foreach (byte[] record in records)
-        {
+        foreach (byte[] record in records) {
             segment.AddRecord(record);
         }
 
@@ -65,11 +64,9 @@ internal static class TestArtifacts
     /// <param name="length">Number of bytes to generate.</param>
     /// <param name="seed">Starting byte value added to each index.</param>
     /// <returns>A new byte array filled with the deterministic pattern.</returns>
-    public static byte[] Pattern(int length, byte seed)
-    {
+    public static byte[] Pattern(int length, byte seed) {
         byte[] data = new byte[length];
-        for (int i = 0; i < length; i++)
-        {
+        for (int i = 0; i < length; i++) {
             data[i] = (byte)(seed + i);
         }
 
@@ -78,8 +75,7 @@ internal static class TestArtifacts
 }
 
 /// <summary>A temp file that deletes itself on dispose.</summary>
-internal sealed class TempFile : IDisposable
-{
+internal sealed class TempFile : IDisposable {
     /// <summary>
     /// Initializes a new instance of the <see cref="TempFile" /> class.
     /// </summary>
@@ -87,22 +83,20 @@ internal sealed class TempFile : IDisposable
     public TempFile(string path) => Path = path;
 
     /// <summary>Gets the absolute path of the tracked temporary file.</summary>
-    public string Path { get; }
+    /// <value>The absolute path of the tracked temporary file.</value>
+    public string Path {
+        get;
+    }
 
     /// <summary>
     /// Deletes the tracked file if it exists. Swallows <see cref="IOException"/>.
     /// </summary>
-    public void Dispose()
-    {
-        try
-        {
-            if (File.Exists(Path))
-            {
+    public void Dispose() {
+        try {
+            if (File.Exists(Path)) {
                 File.Delete(Path);
             }
-        }
-        catch (IOException)
-        {
+        } catch (IOException) {
             // Best-effort cleanup.
         }
     }

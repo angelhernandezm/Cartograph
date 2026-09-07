@@ -7,6 +7,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!--
+      Shipped packages carry an XML documentation file: it drives IntelliSense for consumers and
+      NuGet package analysis flags its absence. Projects that produce no package turn this off
+      individually, because TreatWarningsAsErrors would otherwise promote every undocumented public
+      test or sample class into a build failure for no benefit.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -20,5 +28,37 @@
     <RepositoryType>git</RepositoryType>
     <Version>0.1.0-alpha</Version>
   </PropertyGroup>
+
+  <!--
+    Packaging defaults shared by every shipped package. Symbols travel as a separate .snupkg so the
+    main package stays small, and Source Link (built into the .NET SDK for GitHub-hosted repos)
+    turns the embedded commit metadata into a debuggable source mapping.
+  -->
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <!--
+    A deterministic build needs the source root normalized away, which only the CI build knows how to
+    do safely. Setting it unconditionally would break F5 debugging of a local build.
+  -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    The solution README doubles as the package landing page. It is only attached to projects that
+    actually produce a package, because NuGet fails the pack when PackageReadmeFile names a file the
+    package does not contain.
+  -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 
 </Project>

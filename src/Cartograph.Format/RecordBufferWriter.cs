@@ -45,8 +45,7 @@ namespace Cartograph.Format;
 /// staging buffer, not the size of the serialized value, so ingesting a large object graph never
 /// produces a large object heap allocation.
 /// </remarks>
-internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
-{
+internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable {
     /// <summary>The initial size of the pooled staging buffer.</summary>
     private const int DefaultBufferSize = 64 * 1024;
 
@@ -77,8 +76,7 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     /// <param name="writer">The writer whose destination staged bytes are drained to.</param>
     /// <param name="segmentHasher">The hasher accumulating the enclosing segment's checksum.</param>
     /// <param name="recordHasher">The hasher accumulating this record's checksum.</param>
-    public RecordBufferWriter(StreamingArtifactWriter writer, XxHash3 segmentHasher, XxHash3 recordHasher)
-    {
+    public RecordBufferWriter(StreamingArtifactWriter writer, XxHash3 segmentHasher, XxHash3 recordHasher) {
         _writer = writer;
         _segmentHasher = segmentHasher;
         _recordHasher = recordHasher;
@@ -86,13 +84,13 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     }
 
     /// <summary>The total number of record bytes accepted so far, drained and staged.</summary>
+    /// <value>The total number of record bytes accepted so far, drained and staged.</value>
     public long BytesWritten => _flushed + _index;
 
     /// <summary>Marks <paramref name="count"/> staged bytes as written by the caller.</summary>
     /// <param name="count">The number of bytes written into the span previously returned.</param>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="count"/> is negative or exceeds the staged capacity.</exception>
-    public void Advance(int count)
-    {
+    public void Advance(int count) {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _buffer.Length - _index);
         _index += count;
@@ -102,8 +100,7 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     /// <param name="sizeHint">The minimum number of contiguous bytes required; 0 requests any non-empty span.</param>
     /// <returns>A writable span into the staging buffer.</returns>
     /// <exception cref="System.ObjectDisposedException">The writer has been disposed.</exception>
-    public Memory<byte> GetMemory(int sizeHint = 0)
-    {
+    public Memory<byte> GetMemory(int sizeHint = 0) {
         EnsureCapacity(sizeHint);
         return _buffer.AsMemory(_index);
     }
@@ -112,18 +109,15 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     /// <param name="sizeHint">The minimum number of contiguous bytes required; 0 requests any non-empty span.</param>
     /// <returns>A writable span into the staging buffer.</returns>
     /// <exception cref="System.ObjectDisposedException">The writer has been disposed.</exception>
-    public Span<byte> GetSpan(int sizeHint = 0)
-    {
+    public Span<byte> GetSpan(int sizeHint = 0) {
         EnsureCapacity(sizeHint);
         return _buffer.AsSpan(_index);
     }
 
     /// <summary>Drains any staged bytes to the destination and folds them into both checksums.</summary>
     /// <exception cref="System.InvalidOperationException">The record exceeds <see cref="ArtifactFormat.MaxRecordLength"/> bytes.</exception>
-    public void Flush()
-    {
-        if (_index == 0)
-        {
+    public void Flush() {
+        if (_index == 0) {
             return;
         }
 
@@ -135,8 +129,7 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
         _flushed += _index;
         _index = 0;
 
-        if (_flushed > ArtifactFormat.MaxRecordLength)
-        {
+        if (_flushed > ArtifactFormat.MaxRecordLength) {
             throw new InvalidOperationException(
                 $"A single record cannot exceed {ArtifactFormat.MaxRecordLength} bytes; " +
                 "split the input across multiple records.");
@@ -144,10 +137,8 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     }
 
     /// <summary>Returns the pooled staging buffer without draining it.</summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 
@@ -163,21 +154,18 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     /// <param name="sizeHint">The minimum number of contiguous bytes required.</param>
     /// <exception cref="System.ObjectDisposedException">The writer has been disposed.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="sizeHint"/> is negative.</exception>
-    private void EnsureCapacity(int sizeHint)
-    {
+    private void EnsureCapacity(int sizeHint) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentOutOfRangeException.ThrowIfNegative(sizeHint);
 
         int required = sizeHint == 0 ? 1 : sizeHint;
-        if (_buffer.Length - _index >= required)
-        {
+        if (_buffer.Length - _index >= required) {
             return;
         }
 
         Flush();
 
-        if (_buffer.Length < required)
-        {
+        if (_buffer.Length < required) {
             byte[] grown = ArrayPool<byte>.Shared.Rent(Math.Max(required, _buffer.Length * 2));
             ArrayPool<byte>.Shared.Return(_buffer);
             _buffer = grown;

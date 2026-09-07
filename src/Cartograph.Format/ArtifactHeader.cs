@@ -39,33 +39,48 @@ namespace Cartograph.Format;
 /// The fixed-size file header. Opening an artifact validates this header and refuses anything
 /// unrecognized rather than reading garbage.
 /// </summary>
-public readonly struct ArtifactHeader
-{
+public readonly struct ArtifactHeader {
     /// <summary>The format major version recorded in the file.</summary>
-    public required ushort VersionMajor { get; init; }
+    /// <value>The format major version recorded in the file.</value>
+    public required ushort VersionMajor {
+        get; init;
+    }
 
     /// <summary>The format minor version recorded in the file.</summary>
-    public required ushort VersionMinor { get; init; }
+    /// <value>The format minor version recorded in the file.</value>
+    public required ushort VersionMinor {
+        get; init;
+    }
 
     /// <summary>The native pointer size (in bytes) recorded by the writer.</summary>
-    public required byte PointerSize { get; init; }
+    /// <value>The native pointer size (in bytes) recorded by the writer.</value>
+    public required byte PointerSize {
+        get; init;
+    }
 
     /// <summary>The file-relative offset of the segment manifest.</summary>
-    public required ulong ManifestOffset { get; init; }
+    /// <value>The file-relative offset of the segment manifest.</value>
+    public required ulong ManifestOffset {
+        get; init;
+    }
 
     /// <summary>The length in bytes of the segment manifest.</summary>
-    public required ulong ManifestLength { get; init; }
+    /// <value>The length in bytes of the segment manifest.</value>
+    public required ulong ManifestLength {
+        get; init;
+    }
 
     /// <summary>The total length in bytes the writer recorded for the artifact.</summary>
-    public required ulong ContentLength { get; init; }
+    /// <value>The total length in bytes the writer recorded for the artifact.</value>
+    public required ulong ContentLength {
+        get; init;
+    }
 
     /// <summary>Serializes the header into <paramref name="destination"/> (must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes).</summary>
     /// <param name="destination">The byte span to write the serialized header into; must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes long.</param>
     /// <exception cref="System.ArgumentException">Destination is smaller than the header.</exception>
-    public void Write(Span<byte> destination)
-    {
-        if (destination.Length < ArtifactFormat.HeaderSize)
-        {
+    public void Write(Span<byte> destination) {
+        if (destination.Length < ArtifactFormat.HeaderSize) {
             throw new ArgumentException("Destination is smaller than the header.", nameof(destination));
         }
 
@@ -95,42 +110,35 @@ public readonly struct ArtifactHeader
     /// <exception cref="CartographFormatException">Endianness marker mismatch; the artifact was written on an incompatible byte order.</exception>
     /// <exception cref="CartographFormatException">Unsupported format version; this build reads a different major version.</exception>
     /// <exception cref="CartographFormatException">Header checksum mismatch; the header is corrupt.</exception>
-    public static ArtifactHeader Read(ReadOnlySpan<byte> source)
-    {
-        if (source.Length < ArtifactFormat.HeaderSize)
-        {
+    public static ArtifactHeader Read(ReadOnlySpan<byte> source) {
+        if (source.Length < ArtifactFormat.HeaderSize) {
             throw new CartographFormatException("File is smaller than the fixed header.");
         }
 
-        if (!source[..4].SequenceEqual(ArtifactFormat.Magic))
-        {
+        if (!source[..4].SequenceEqual(ArtifactFormat.Magic)) {
             throw new CartographFormatException("Bad magic: not a Cartograph artifact.");
         }
 
         uint marker = BinaryPrimitives.ReadUInt32LittleEndian(source[8..]);
-        if (marker != ArtifactFormat.EndiannessMarker)
-        {
+        if (marker != ArtifactFormat.EndiannessMarker) {
             throw new CartographFormatException(
                 $"Endianness marker mismatch (0x{marker:X8}); the artifact was written on an incompatible byte order.");
         }
 
         ushort major = BinaryPrimitives.ReadUInt16LittleEndian(source[4..]);
         ushort minor = BinaryPrimitives.ReadUInt16LittleEndian(source[6..]);
-        if (major != ArtifactFormat.VersionMajor)
-        {
+        if (major != ArtifactFormat.VersionMajor) {
             throw new CartographFormatException(
                 $"Unsupported format version {major}.{minor}; this build reads {ArtifactFormat.VersionMajor}.x.");
         }
 
         ulong expected = XxHash3.HashToUInt64(source[..ArtifactFormat.HeaderChecksumCoverage]);
         ulong actual = BinaryPrimitives.ReadUInt64LittleEndian(source[ArtifactFormat.HeaderChecksumCoverage..]);
-        if (expected != actual)
-        {
+        if (expected != actual) {
             throw new CartographFormatException("Header checksum mismatch; the header is corrupt.");
         }
 
-        return new ArtifactHeader
-        {
+        return new ArtifactHeader {
             VersionMajor = major,
             VersionMinor = minor,
             PointerSize = source[12],

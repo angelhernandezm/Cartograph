@@ -38,35 +38,41 @@ namespace Cartograph.Benchmarks;
 /// <summary>
 /// The headline benchmark: artifact OPEN TIME as a function of file size.
 /// </summary>
-/// <remarks>
-/// The claim under test is "build once, map instantly": mapped open should be flat (O(1)) across
+/// <remarks>The claim under test is "build once, map instantly": mapped open should be flat (O(1)) across
 /// file sizes because it only reads and validates the header and manifest, while the naive
-/// <see cref="File.ReadAllBytes(string)"/> baseline is linear in file size and allocates a buffer
+/// <see cref="File.ReadAllBytes(string)" /> baseline is linear in file size and allocates a buffer
 /// proportional to the whole file. Random-access open is also flat (it reads only metadata) but
-/// pays no mapping cost.
-/// </remarks>
+/// pays no mapping cost.</remarks>
 [MemoryDiagnoser]
-public class OpenTimeBenchmarks
-{
+public class OpenTimeBenchmarks {
+    /// <summary>
+    /// Path to the temporary artifact written by the setup step.
+    /// </summary>
     private string _path = string.Empty;
 
-    /// <summary>Approximate artifact size, swept to show flat-vs-linear open cost.</summary>
+    /// <summary>
+    /// Approximate artifact size, swept to show flat-vs-linear open cost.
+    /// </summary>
+    /// <value>Approximate artifact size, swept to show flat-vs-linear open cost.</value>
     [Params(8, 64, 256)]
-    public int SizeMiB { get; set; }
+    public int SizeMiB {
+        get; set;
+    }
 
     /// <summary>
-    /// Writes an artifact of the configured <see cref="SizeMiB"/> size to a temporary file.
+    /// Writes an artifact of the configured <see cref="SizeMiB" /> size to a temporary file.
     /// </summary>
     [GlobalSetup]
-    public void Setup()
-    {
+    public void Setup() {
         const int dimensions = 768;
         int bytesPerRecord = dimensions * sizeof(float);
         int recordCount = (int)((long)SizeMiB * 1024 * 1024 / bytesPerRecord);
         _path = BenchmarkData.WriteVectorArtifact(recordCount, dimensions);
     }
 
-    /// <summary>Deletes the temporary artifact file created by <see cref="Setup"/>.</summary>
+    /// <summary>
+    /// Deletes the temporary artifact file created by <see cref="Setup" />.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup() => BenchmarkData.TryDelete(_path);
 
@@ -75,8 +81,7 @@ public class OpenTimeBenchmarks
     /// </summary>
     /// <returns>The total number of bytes read.</returns>
     [Benchmark(Baseline = true)]
-    public long Baseline_ReadAllBytes()
-    {
+    public long Baseline_ReadAllBytes() {
         byte[] bytes = File.ReadAllBytes(_path);
         return bytes.Length;
     }
@@ -86,8 +91,7 @@ public class OpenTimeBenchmarks
     /// </summary>
     /// <returns>The number of records in the artifact.</returns>
     [Benchmark]
-    public long Open_Mapped()
-    {
+    public long Open_Mapped() {
         using Artifact artifact = Artifact.Open(_path, new ArtifactOpenOptions { ChunkSource = ChunkSourceKind.Mapped });
         return artifact.RecordCount;
     }
@@ -97,8 +101,7 @@ public class OpenTimeBenchmarks
     /// </summary>
     /// <returns>The number of records in the artifact.</returns>
     [Benchmark]
-    public long Open_RandomAccess()
-    {
+    public long Open_RandomAccess() {
         using Artifact artifact = Artifact.Open(_path, new ArtifactOpenOptions { ChunkSource = ChunkSourceKind.RandomAccess });
         return artifact.RecordCount;
     }

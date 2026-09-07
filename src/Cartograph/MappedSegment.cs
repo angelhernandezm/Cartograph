@@ -58,12 +58,23 @@ namespace Cartograph;
 /// segment (for example when a manifest swap retires the underlying region).
 /// </para>
 /// </remarks>
-public sealed class MappedSegment : IDisposable
-{
+public sealed class MappedSegment : IDisposable {
+    /// <summary>The accessor that owns the mapped view backing this segment.</summary>
     private readonly MemoryMappedViewAccessor _accessor;
+
+    /// <summary>The manager that pins the view and projects it as memory.</summary>
     private readonly MappedMemoryManager _manager;
+
+    /// <summary>The read-only projection of the mapped region.</summary>
     private readonly ReadOnlyMemory<byte> _memory;
+
+    /// <summary>
+    /// The number of outstanding references: one for the owner plus one per live lease. The view is
+    /// unmapped when this reaches zero.
+    /// </summary>
     private int _refCount = 1;
+
+    /// <summary>Non-zero once the owner's reference has been released, used to make disposal idempotent.</summary>
     private int _ownerReleased;
 
     /// <summary>Creates a segment over <paramref name="length"/> bytes starting at <paramref name="fileOffset"/>.</summary>
@@ -77,8 +88,7 @@ public sealed class MappedSegment : IDisposable
         MemoryMappedFile mappedFile,
         long fileOffset,
         int length,
-        MemoryMappedFileAccess access = MemoryMappedFileAccess.Read)
-    {
+        MemoryMappedFileAccess access = MemoryMappedFileAccess.Read) {
         ArgumentNullException.ThrowIfNull(mappedFile);
         ArgumentOutOfRangeException.ThrowIfNegative(fileOffset);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
@@ -90,22 +100,27 @@ public sealed class MappedSegment : IDisposable
     }
 
     /// <summary>The absolute file offset of the region this segment covers.</summary>
-    public long FileOffset { get; }
+    /// <value>The absolute file offset of the region this segment covers.</value>
+    public long FileOffset {
+        get;
+    }
 
     /// <summary>The number of bytes covered by this segment.</summary>
+    /// <value>The number of bytes covered by this segment.</value>
     public int Length => _manager.Length;
 
     /// <summary>
     /// The whole segment as read-only memory. Prefer <see cref="Lease"/> when the memory will outlive
     /// the immediate call, so its lifetime is protected by the reference count.
     /// </summary>
+    /// <value>
+    /// The whole segment as read-only memory. Prefer <see cref="Lease"/> when the memory will outlive the
+    /// immediate call, so its lifetime is protected by the reference count.
+    /// </value>
     /// <exception cref="System.ObjectDisposedException">The <see cref="MappedSegment"/> has been fully released.</exception>
-    public ReadOnlyMemory<byte> Memory
-    {
-        get
-        {
-            if (Volatile.Read(ref _refCount) <= 0)
-            {
+    public ReadOnlyMemory<byte> Memory {
+        get {
+            if (Volatile.Read(ref _refCount) <= 0) {
                 throw new ObjectDisposedException(nameof(MappedSegment));
             }
 
@@ -118,23 +133,18 @@ public sealed class MappedSegment : IDisposable
     /// </summary>
     /// <returns>A <see cref="ViewLease"/> that keeps the backing view alive for its lifetime.</returns>
     /// <exception cref="System.ObjectDisposedException">The segment's owner has been disposed or it is fully released.</exception>
-    public ViewLease Lease()
-    {
-        if (Volatile.Read(ref _ownerReleased) != 0)
-        {
+    public ViewLease Lease() {
+        if (Volatile.Read(ref _ownerReleased) != 0) {
             throw new ObjectDisposedException(nameof(MappedSegment));
         }
 
-        while (true)
-        {
+        while (true) {
             int current = Volatile.Read(ref _refCount);
-            if (current <= 0)
-            {
+            if (current <= 0) {
                 throw new ObjectDisposedException(nameof(MappedSegment));
             }
 
-            if (Interlocked.CompareExchange(ref _refCount, current + 1, current) == current)
-            {
+            if (Interlocked.CompareExchange(ref _refCount, current + 1, current) == current) {
                 return new ViewLease(this, _memory);
             }
         }
@@ -143,26 +153,21 @@ public sealed class MappedSegment : IDisposable
     /// <summary>
     /// Decrements the reference count and unmaps the view when the count reaches zero.
     /// </summary>
-    internal void ReleaseLease()
-    {
-        if (Interlocked.Decrement(ref _refCount) == 0)
-        {
+    internal void ReleaseLease() {
+        if (Interlocked.Decrement(ref _refCount) == 0) {
             Unmap();
         }
     }
 
     /// <summary>Releases the owner reference. The view is unmapped once all outstanding leases are also released.</summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _ownerReleased, 1) == 0)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _ownerReleased, 1) == 0) {
             ReleaseLease();
         }
     }
 
     /// <summary>Releases all unmanaged resources: disposes the memory manager and the view accessor.</summary>
-    private void Unmap()
-    {
+    private void Unmap() {
         ((IDisposable)_manager).Dispose();
         _accessor.Dispose();
     }

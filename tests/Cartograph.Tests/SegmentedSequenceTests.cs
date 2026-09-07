@@ -39,15 +39,13 @@ namespace Cartograph.Tests;
 /// <summary>
 /// Tests that verify <see cref="MappedSequence"/> stitches multi-chunk records correctly.
 /// </summary>
-public class SegmentedSequenceTests
-{
+public class SegmentedSequenceTests {
     /// <summary>
     /// Verifies that <see cref="MappedSequence.Create"/> produces a multi-segment
     /// <see cref="ReadOnlySequence{T}"/> that concatenates the source chunks in order.
     /// </summary>
     [Fact]
-    public void MappedSequence_StitchesChunksInOrder()
-    {
+    public void MappedSequence_StitchesChunksInOrder() {
         byte[] a = TestArtifacts.Pattern(10, 0);
         byte[] b = TestArtifacts.Pattern(10, 10);
         byte[] c = TestArtifacts.Pattern(10, 20);
@@ -64,8 +62,7 @@ public class SegmentedSequenceTests
     /// and that the resulting bytes are byte-exact.
     /// </summary>
     [Fact]
-    public void LargeRecord_SpansMultipleMappedWindows()
-    {
+    public void LargeRecord_SpansMultipleMappedWindows() {
         // A record larger than one 64 KiB window forces the stitching path across views.
         byte[] big = TestArtifacts.Pattern(200_000, 3);
         byte[] small = TestArtifacts.Pattern(32, 1);
@@ -74,7 +71,9 @@ public class SegmentedSequenceTests
         using TempFile temp = new(path);
 
         // Force a tiny window so a single record must cross window boundaries.
-        ArtifactOpenOptions options = new() { ChunkSource = ChunkSourceKind.Mapped, WindowSize = 1 };
+        ArtifactOpenOptions options = new() {
+            ChunkSource = ChunkSourceKind.Mapped, WindowSize = 1
+        };
         using Artifact artifact = Artifact.Open(path, options);
 
         using RecordLease lease = artifact.ReadRecord(1);
@@ -89,8 +88,7 @@ public class SegmentedSequenceTests
     /// boundaries produces bytes that are bit-for-bit identical to the original payload.
     /// </summary>
     [Fact]
-    public void CrossBoundaryReconstruction_IsByteExact()
-    {
+    public void CrossBoundaryReconstruction_IsByteExact() {
         byte[] big = TestArtifacts.Pattern(150_000, 99);
         string path = TestArtifacts.WriteSingleSegment([big]);
         using TempFile temp = new(path);
@@ -101,8 +99,7 @@ public class SegmentedSequenceTests
         // Walk the sequence manually and rebuild, verifying boundary handling.
         byte[] rebuilt = new byte[lease.Length];
         int offset = 0;
-        foreach (ReadOnlyMemory<byte> segment in lease.Sequence)
-        {
+        foreach (ReadOnlyMemory<byte> segment in lease.Sequence) {
             segment.Span.CopyTo(rebuilt.AsSpan(offset));
             offset += segment.Length;
         }
@@ -115,11 +112,9 @@ public class SegmentedSequenceTests
     /// </summary>
     /// <param name="sequence">The sequence whose segments are counted.</param>
     /// <returns>The total number of memory segments in the sequence.</returns>
-    private static int CountSegments(ReadOnlySequence<byte> sequence)
-    {
+    private static int CountSegments(ReadOnlySequence<byte> sequence) {
         int count = 0;
-        foreach (ReadOnlyMemory<byte> _ in sequence)
-        {
+        foreach (ReadOnlyMemory<byte> _ in sequence) {
             count++;
         }
 

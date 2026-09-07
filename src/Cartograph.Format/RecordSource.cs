@@ -44,16 +44,24 @@ namespace Cartograph.Format;
 /// at write time. Sources that cannot report a checksum without reading their backing store are
 /// written using the payload-first segment layout, so a single pass both emits and checksums them.
 /// </remarks>
-internal abstract class RecordSource
-{
+internal abstract class RecordSource {
     /// <summary>The byte length of the record.</summary>
-    public abstract long Length { get; }
+    /// <value>The byte length of the record.</value>
+    public abstract long Length {
+        get;
+    }
 
     /// <summary>
     /// Whether this source can report <see cref="ComputeChecksum"/> cheaply, without re-reading a
     /// backing store. Segments containing any source that cannot are laid out payload-first.
     /// </summary>
-    public abstract bool HasCheapChecksum { get; }
+    /// <value>
+    /// Whether this source can report <see cref="ComputeChecksum"/> cheaply, without re-reading a backing
+    /// store. Segments containing any source that cannot are laid out payload-first.
+    /// </value>
+    public abstract bool HasCheapChecksum {
+        get;
+    }
 
     /// <summary>Computes the XxHash3 checksum of the record's bytes.</summary>
     /// <returns>The XxHash3 checksum of the record payload.</returns>
@@ -75,8 +83,7 @@ internal abstract class RecordSource
 /// <summary>
 /// A record whose payload is fully materialized as a byte array on the managed heap.
 /// </summary>
-internal sealed class BufferedRecordSource : RecordSource
-{
+internal sealed class BufferedRecordSource : RecordSource {
     /// <summary>The materialized record payload.</summary>
     private readonly byte[] _payload;
 
@@ -90,9 +97,11 @@ internal sealed class BufferedRecordSource : RecordSource
     public BufferedRecordSource(byte[] payload) => _payload = payload;
 
     /// <summary>The byte length of the buffered payload.</summary>
+    /// <value>The byte length of the buffered payload.</value>
     public override long Length => _payload.Length;
 
     /// <summary>Always <see langword="true"/>; the payload is already in memory.</summary>
+    /// <value>Always <see langword="true"/>; the payload is already in memory.</value>
     public override bool HasCheapChecksum => true;
 
     /// <summary>Computes (and caches) the XxHash3 checksum of the buffered payload.</summary>
@@ -103,8 +112,7 @@ internal sealed class BufferedRecordSource : RecordSource
     /// <param name="stream">The destination stream positioned at the record's payload offset.</param>
     /// <param name="segmentHasher">The hasher accumulating the enclosing segment's checksum.</param>
     /// <returns>The XxHash3 checksum of the bytes just written.</returns>
-    public override ulong WriteTo(Stream stream, XxHash3 segmentHasher)
-    {
+    public override ulong WriteTo(Stream stream, XxHash3 segmentHasher) {
         stream.Write(_payload);
         segmentHasher.Append(_payload);
         return ComputeChecksum();
@@ -119,8 +127,7 @@ internal sealed class BufferedRecordSource : RecordSource
 /// This is the mechanism that makes packing memory-bounded: an artifact containing many gigabytes of
 /// file data is written using a single pooled scratch buffer, independent of the total payload size.
 /// </remarks>
-internal sealed class FileRecordSource : RecordSource
-{
+internal sealed class FileRecordSource : RecordSource {
     /// <summary>The size of the pooled scratch buffer used to stage file reads.</summary>
     private const int CopyBufferSize = 1024 * 1024;
 
@@ -136,24 +143,26 @@ internal sealed class FileRecordSource : RecordSource
     /// <param name="path">The path of the backing file.</param>
     /// <param name="offset">The byte offset within the file at which the record begins.</param>
     /// <param name="length">The number of bytes the record spans.</param>
-    public FileRecordSource(string path, long offset, long length)
-    {
+    public FileRecordSource(string path, long offset, long length) {
         _path = path;
         _offset = offset;
         Length = length;
     }
 
     /// <summary>The byte length of the record's range within the backing file.</summary>
-    public override long Length { get; }
+    /// <value>The byte length of the record's range within the backing file.</value>
+    public override long Length {
+        get;
+    }
 
     /// <summary>Always <see langword="false"/>; checksumming requires reading the file.</summary>
+    /// <value>Always <see langword="false"/>; checksumming requires reading the file.</value>
     public override bool HasCheapChecksum => false;
 
     /// <summary>Reads the backing range and computes its XxHash3 checksum without writing it.</summary>
     /// <returns>The XxHash3 checksum of the record payload.</returns>
     /// <exception cref="System.IO.EndOfStreamException">The file ended before the declared length.</exception>
-    public override ulong ComputeChecksum()
-    {
+    public override ulong ComputeChecksum() {
         XxHash3 hasher = new();
         Pump(destination: null, segmentHasher: null, recordHasher: hasher);
         return hasher.GetCurrentHashAsUInt64();
@@ -164,8 +173,7 @@ internal sealed class FileRecordSource : RecordSource
     /// <param name="segmentHasher">The hasher accumulating the enclosing segment's checksum.</param>
     /// <returns>The XxHash3 checksum of the bytes just written.</returns>
     /// <exception cref="System.IO.EndOfStreamException">The file ended before the declared length.</exception>
-    public override ulong WriteTo(Stream stream, XxHash3 segmentHasher)
-    {
+    public override ulong WriteTo(Stream stream, XxHash3 segmentHasher) {
         XxHash3 recordHasher = new();
         Pump(stream, segmentHasher, recordHasher);
         return recordHasher.GetCurrentHashAsUInt64();
@@ -179,8 +187,7 @@ internal sealed class FileRecordSource : RecordSource
     /// <param name="segmentHasher">The segment hasher to feed, or <see langword="null"/> to skip.</param>
     /// <param name="recordHasher">The per-record hasher to feed.</param>
     /// <exception cref="System.IO.EndOfStreamException">The file ended before the declared length.</exception>
-    private void Pump(Stream? destination, XxHash3? segmentHasher, XxHash3 recordHasher)
-    {
+    private void Pump(Stream? destination, XxHash3? segmentHasher, XxHash3 recordHasher) {
         using FileStream file = new(
             _path,
             FileMode.Open,
@@ -190,16 +197,13 @@ internal sealed class FileRecordSource : RecordSource
             FileOptions.SequentialScan);
 
         byte[] scratch = ArrayPool<byte>.Shared.Rent(CopyBufferSize);
-        try
-        {
+        try {
             long remaining = Length;
             long position = _offset;
-            while (remaining > 0)
-            {
+            while (remaining > 0) {
                 int want = (int)Math.Min(remaining, scratch.Length);
                 int read = RandomAccess.Read(file.SafeFileHandle, scratch.AsSpan(0, want), position);
-                if (read <= 0)
-                {
+                if (read <= 0) {
                     throw new EndOfStreamException(
                         $"File '{_path}' ended {remaining} byte(s) before the declared record length.");
                 }
@@ -212,9 +216,7 @@ internal sealed class FileRecordSource : RecordSource
                 position += read;
                 remaining -= read;
             }
-        }
-        finally
-        {
+        } finally {
             ArrayPool<byte>.Shared.Return(scratch);
         }
     }

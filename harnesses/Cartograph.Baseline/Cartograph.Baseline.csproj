@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <AssemblyName>dotnet-baseline</AssemblyName>
     <RootNamespace>Cartograph.Baseline</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>

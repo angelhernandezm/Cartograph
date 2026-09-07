@@ -64,8 +64,7 @@ namespace Cartograph.Format;
 /// destination is left with a zeroed placeholder header and is deliberately not a valid artifact.
 /// </para>
 /// </remarks>
-public sealed class StreamingArtifactWriter : IDisposable
-{
+public sealed class StreamingArtifactWriter : IDisposable {
     /// <summary>The destination the artifact is written to.</summary>
     private readonly Stream _stream;
 
@@ -98,8 +97,7 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="System.IO.IOException">The file could not be created.</exception>
     public StreamingArtifactWriter(string path)
-        : this(CreateFile(path), ownsStream: true)
-    {
+        : this(CreateFile(path), ownsStream: true) {
     }
 
     /// <summary>
@@ -110,8 +108,7 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
     /// <exception cref="System.ArgumentException"><paramref name="stream"/> is not writable or not seekable.</exception>
     public StreamingArtifactWriter(Stream stream)
-        : this(stream, ownsStream: false)
-    {
+        : this(stream, ownsStream: false) {
     }
 
     /// <summary>
@@ -122,17 +119,14 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <param name="ownsStream">Whether disposing this writer should also dispose <paramref name="stream"/>.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
     /// <exception cref="System.ArgumentException"><paramref name="stream"/> is not writable or not seekable.</exception>
-    private StreamingArtifactWriter(Stream stream, bool ownsStream)
-    {
+    private StreamingArtifactWriter(Stream stream, bool ownsStream) {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!stream.CanWrite)
-        {
+        if (!stream.CanWrite) {
             throw new ArgumentException("The destination stream must be writable.", nameof(stream));
         }
 
-        if (!stream.CanSeek)
-        {
+        if (!stream.CanSeek) {
             throw new ArgumentException(
                 "The destination stream must be seekable so the header can be patched on completion.",
                 nameof(stream));
@@ -150,9 +144,11 @@ public sealed class StreamingArtifactWriter : IDisposable
     }
 
     /// <summary>The number of segments closed so far.</summary>
+    /// <value>The number of segments closed so far.</value>
     public int SegmentCount => _descriptors.Count;
 
     /// <summary>The number of bytes written to the destination so far.</summary>
+    /// <value>The number of bytes written to the destination so far.</value>
     public long BytesWritten => _position;
 
     /// <summary>
@@ -165,17 +161,14 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <exception cref="System.ObjectDisposedException">The writer has been disposed.</exception>
     /// <exception cref="System.InvalidOperationException">The artifact has already been completed.</exception>
     /// <exception cref="System.InvalidOperationException">Another segment is still open.</exception>
-    public StreamingSegment BeginSegment(uint? segmentId = null)
-    {
+    public StreamingSegment BeginSegment(uint? segmentId = null) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (_completed)
-        {
+        if (_completed) {
             throw new InvalidOperationException("The artifact has already been completed.");
         }
 
-        if (_openSegment is not null)
-        {
+        if (_openSegment is not null) {
             throw new InvalidOperationException(
                 "A segment is already open; complete it before beginning another.");
         }
@@ -196,17 +189,14 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <exception cref="System.ObjectDisposedException">The writer has been disposed.</exception>
     /// <exception cref="System.InvalidOperationException">The artifact has already been completed.</exception>
     /// <exception cref="System.InvalidOperationException">A segment is still open.</exception>
-    public void Complete()
-    {
+    public void Complete() {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (_completed)
-        {
+        if (_completed) {
             throw new InvalidOperationException("The artifact has already been completed.");
         }
 
-        if (_openSegment is not null)
-        {
+        if (_openSegment is not null) {
             throw new InvalidOperationException(
                 "A segment is still open; complete it before completing the artifact.");
         }
@@ -220,8 +210,7 @@ public sealed class StreamingArtifactWriter : IDisposable
         _stream.Write(manifestBytes);
         _position += manifestBytes.Length;
 
-        ArtifactHeader header = new()
-        {
+        ArtifactHeader header = new() {
             VersionMajor = ArtifactFormat.VersionMajor,
             VersionMinor = ArtifactFormat.VersionMinor,
             PointerSize = (byte)IntPtr.Size,
@@ -243,10 +232,8 @@ public sealed class StreamingArtifactWriter : IDisposable
     }
 
     /// <summary>Releases the destination stream if this writer opened it.</summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 
@@ -254,8 +241,7 @@ public sealed class StreamingArtifactWriter : IDisposable
         _openSegment?.Abandon();
         _openSegment = null;
 
-        if (_ownsStream)
-        {
+        if (_ownsStream) {
             _stream.Dispose();
         }
     }
@@ -265,16 +251,14 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <returns>A writable, seekable <see cref="FileStream"/> positioned at the start of the file.</returns>
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="System.IO.IOException">The file could not be created.</exception>
-    private static FileStream CreateFile(string path)
-    {
+    private static FileStream CreateFile(string path) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         return new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
     }
 
     /// <summary>Writes <paramref name="data"/> to the destination and advances the write position.</summary>
     /// <param name="data">The bytes to write.</param>
-    internal void WriteRaw(ReadOnlySpan<byte> data)
-    {
+    internal void WriteRaw(ReadOnlySpan<byte> data) {
         _stream.Write(data);
         _position += data.Length;
     }
@@ -283,16 +267,17 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <param name="data">The bytes to write.</param>
     /// <param name="cancellationToken">A token used to cancel the write.</param>
     /// <returns>A task that completes once the bytes have been written.</returns>
-    internal async ValueTask WriteRawAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
-    {
+    internal async ValueTask WriteRawAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken) {
         await _stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
         _position += data.Length;
     }
 
     /// <summary>The destination stream, exposed so an open segment can stage bytes through it.</summary>
+    /// <value>The destination stream, exposed so an open segment can stage bytes through it.</value>
     internal Stream Destination => _stream;
 
     /// <summary>The current write position within the destination.</summary>
+    /// <value>The current write position within the destination.</value>
     internal long Position => _position;
 
     /// <summary>Advances the recorded write position by <paramref name="count"/> bytes.</summary>
@@ -306,16 +291,13 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <param name="target">The target byte position; must be &gt;= the current position.</param>
     /// <param name="hasher">The optional segment hasher to feed padding into; may be <see langword="null"/>.</param>
     /// <exception cref="System.InvalidOperationException">Layout error: attempted to pad backwards.</exception>
-    internal void PadTo(long target, XxHash3? hasher)
-    {
-        if (target < _position)
-        {
+    internal void PadTo(long target, XxHash3? hasher) {
+        if (target < _position) {
             throw new InvalidOperationException("Layout error: attempted to pad backwards.");
         }
 
         long remaining = target - _position;
-        while (remaining > 0)
-        {
+        while (remaining > 0) {
             int chunk = (int)Math.Min(remaining, _padScratch.Length);
             Array.Clear(_padScratch, 0, chunk);
             _stream.Write(_padScratch, 0, chunk);
@@ -328,10 +310,9 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <summary>Records a closed segment's descriptor and clears the open-segment slot.</summary>
     /// <param name="segment">The segment that has just been closed.</param>
     /// <param name="descriptor">The descriptor describing the closed segment.</param>
-    internal void OnSegmentCompleted(StreamingSegment segment, in SegmentDescriptor descriptor)
-    {
-        if (!ReferenceEquals(_openSegment, segment))
-        {
+    /// <exception cref="System.InvalidOperationException"><paramref name="segment"/> is not the currently open segment.</exception>
+    internal void OnSegmentCompleted(StreamingSegment segment, in SegmentDescriptor descriptor) {
+        if (!ReferenceEquals(_openSegment, segment)) {
             throw new InvalidOperationException("The completed segment is not the open segment.");
         }
 

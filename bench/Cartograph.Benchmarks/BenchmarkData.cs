@@ -34,15 +34,17 @@ using Cartograph.Format;
 
 namespace Cartograph.Benchmarks;
 
-/// <summary>Helpers to generate on-disk artifacts of float-vector records for the benchmarks.</summary>
-internal static class BenchmarkData
-{
-    /// <summary>Writes an artifact of <paramref name="recordCount"/> vectors of <paramref name="dimensions"/> floats.</summary>
+/// <summary>
+/// Helpers to generate on-disk artifacts of float-vector records for the benchmarks.
+/// </summary>
+internal static class BenchmarkData {
+    /// <summary>
+    /// Writes an artifact of <paramref name="recordCount" /> vectors of <paramref name="dimensions" /> floats.
+    /// </summary>
     /// <param name="recordCount">Number of vector records to write.</param>
     /// <param name="dimensions">Number of float dimensions per vector.</param>
     /// <returns>The absolute path of the written artifact file.</returns>
-    public static string WriteVectorArtifact(int recordCount, int dimensions)
-    {
+    public static string WriteVectorArtifact(int recordCount, int dimensions) {
         string path = Path.Combine(Path.GetTempPath(), $"cartograph-bench-{Guid.NewGuid():N}.ctg");
         SegmentedArtifactWriter writer = new();
         SegmentBuilder segment = writer.AddSegment();
@@ -50,10 +52,8 @@ internal static class BenchmarkData
         float[] vector = new float[dimensions];
         byte[] bytes = new byte[dimensions * sizeof(float)];
         Random random = new(1234);
-        for (int r = 0; r < recordCount; r++)
-        {
-            for (int d = 0; d < dimensions; d++)
-            {
+        for (int r = 0; r < recordCount; r++) {
+            for (int d = 0; d < dimensions; d++) {
                 vector[d] = (float)(random.NextDouble() * 2.0 - 1.0);
             }
 
@@ -65,15 +65,15 @@ internal static class BenchmarkData
         return path;
     }
 
-    /// <summary>A random unit-ish query vector used by the cosine-similarity benchmark.</summary>
+    /// <summary>
+    /// A random unit-ish query vector used by the cosine-similarity benchmark.
+    /// </summary>
     /// <param name="dimensions">Number of float dimensions in the returned vector.</param>
-    /// <returns>A float array of length <paramref name="dimensions"/> filled with random values in [-1, 1].</returns>
-    public static float[] QueryVector(int dimensions)
-    {
+    /// <returns>A float array of length <paramref name="dimensions" /> filled with random values in [-1, 1].</returns>
+    public static float[] QueryVector(int dimensions) {
         float[] vector = new float[dimensions];
         Random random = new(42);
-        for (int d = 0; d < dimensions; d++)
-        {
+        for (int d = 0; d < dimensions; d++) {
             vector[d] = (float)(random.NextDouble() * 2.0 - 1.0);
         }
 
@@ -81,17 +81,13 @@ internal static class BenchmarkData
     }
 
     /// <summary>
-    /// Attempts to delete the file at <paramref name="path"/>, swallowing any <see cref="IOException"/>.
+    /// Attempts to delete the file at <paramref name="path" />, swallowing any <see cref="IOException" />.
     /// </summary>
     /// <param name="path">Absolute path of the file to delete.</param>
-    public static void TryDelete(string path)
-    {
-        try
-        {
+    public static void TryDelete(string path) {
+        try {
             File.Delete(path);
-        }
-        catch (IOException)
-        {
+        } catch (IOException) {
         }
     }
 }

@@ -38,14 +38,11 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Hosts the entry point of the baseline executable
 /// </summary>
-/// <remarks>
-/// The baseline mirrors the Cartograph harness command for command, but stores files with plain .NET
+/// <remarks>The baseline mirrors the Cartograph harness command for command, but stores files with plain .NET
 /// primitives instead of the artifact format. Running the same tree through both programs and reading
 /// the CSV each emits is the whole point: it turns "is a memory-mapped artifact worth it" into a
-/// question with numbers behind it.
-/// </remarks>
-internal static class Program
-{
+/// question with numbers behind it.</remarks>
+internal static class Program {
     /// <summary>
     /// Exit code reported when the requested work completed successfully
     /// </summary>
@@ -71,10 +68,8 @@ internal static class Program
     /// </summary>
     /// <param name="args">Command line arguments</param>
     /// <returns>A process exit code describing the outcome of the run</returns>
-    public static int Main(string[] args)
-    {
-        if (!BaselineOptions.TryParse(args, out BaselineOptions? options, out string? error))
-        {
+    public static int Main(string[] args) {
+        if (!BaselineOptions.TryParse(args, out BaselineOptions? options, out string? error)) {
             ConsoleReport.Error(error!);
             Console.Error.WriteLine();
             BaselineOptions.PrintUsage();
@@ -83,34 +78,28 @@ internal static class Program
 
         ConsoleReport.Quiet = options!.Quiet;
 
-        if (options.Command == BaselineCommand.Help)
-        {
+        if (options.Command == BaselineCommand.Help) {
             BaselineOptions.PrintUsage();
             return ExitSuccess;
         }
 
-        if (options.Csv)
-        {
+        if (options.Csv) {
             RunMetrics.ReportCsvHeader();
         }
 
-        try
-        {
-            return options.Command switch
-            {
+        try {
+            return options.Command switch {
                 BaselineCommand.Pack => RunPack(options),
                 BaselineCommand.Load => RunLoad(options),
                 BaselineCommand.Roundtrip => RunRoundtrip(options),
                 BaselineCommand.Demo => RunDemo(options),
                 _ => ExitUsage,
             };
-        }
-        catch (Exception ex) when (ex is IOException
-                                   or UnauthorizedAccessException
-                                   or InvalidDataException
-                                   or InvalidOperationException
-                                   or ArgumentException)
-        {
+        } catch (Exception ex) when (ex is IOException
+                                     or UnauthorizedAccessException
+                                     or InvalidDataException
+                                     or InvalidOperationException
+                                     or ArgumentException) {
             ConsoleReport.Error(ex.Message);
             return ExitFailure;
         }
@@ -121,8 +110,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunPack(BaselineOptions options)
-    {
+    private static int RunPack(BaselineOptions options) {
         string root = Path.GetFullPath(options.InputPath!);
         BaselineContainer container = BaselineContainer.Create(options.Container, root);
         string containerPath = ResolveContainerPath(options, root, container);
@@ -144,8 +132,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunLoad(BaselineOptions options)
-    {
+    private static int RunLoad(BaselineOptions options) {
         string containerPath = Path.GetFullPath(options.InputPath!);
 
         // Loose treats the folder as the container, so the input path is also the source root.
@@ -167,8 +154,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunRoundtrip(BaselineOptions options)
-    {
+    private static int RunRoundtrip(BaselineOptions options) {
         string root = Path.GetFullPath(options.InputPath!);
         BaselineContainer container = BaselineContainer.Create(options.Container, root);
         string containerPath = ResolveContainerPath(options, root, container);
@@ -192,8 +178,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunDemo(BaselineOptions options)
-    {
+    private static int RunDemo(BaselineOptions options) {
         ConsoleReport.Heading("DEMO TREE");
 
         using DemoTree tree = DemoTree.Create(options.DemoFileCount, options.CleanupDemo);
@@ -215,19 +200,14 @@ internal static class Program
         EmitCsv(options, container, packed.Metrics, outcome.OpenMetrics, outcome.VerifyMetrics);
         int exitCode = Summarize(outcome);
 
-        if (options.CleanupDemo)
-        {
-            if (container.Extension.Length > 0)
-            {
+        if (options.CleanupDemo) {
+            if (container.Extension.Length > 0) {
                 TryDelete(packed.ContainerPath);
             }
-        }
-        else
-        {
+        } else {
             ConsoleReport.Line($"Kept the demo tree at {tree.Root}");
 
-            if (container.Extension.Length > 0)
-            {
+            if (container.Extension.Length > 0) {
                 ConsoleReport.Line($"Kept the container at {packed.ContainerPath}");
             }
         }
@@ -248,12 +228,10 @@ internal static class Program
         BaselineOptions options,
         BaselineContainer container,
         string root,
-        string containerPath)
-    {
+        string containerPath) {
         List<SourceFile> files = SourceScanner.Scan(options, root, out int skippedTooLarge, out int skippedFiltered);
 
-        if (files.Count == 0)
-        {
+        if (files.Count == 0) {
             throw new InvalidOperationException(
                 $"No files under '{root}' matched the current filters, so there is nothing to pack.");
         }
@@ -262,8 +240,7 @@ internal static class Program
 
         string? directory = Path.GetDirectoryName(containerPath);
 
-        if (container.Extension.Length > 0 && !string.IsNullOrEmpty(directory))
-        {
+        if (container.Extension.Length > 0 && !string.IsNullOrEmpty(directory)) {
             Directory.CreateDirectory(directory);
         }
 
@@ -274,18 +251,15 @@ internal static class Program
         ConsoleReport.Field("Container size", ConsoleReport.Bytes(result.ContainerBytes));
         ConsoleReport.Field("Pack time", ConsoleReport.Duration(result.Metrics.Elapsed));
 
-        if (skippedFiltered > 0)
-        {
+        if (skippedFiltered > 0) {
             ConsoleReport.Field("Skipped (filtered)", ConsoleReport.Count(skippedFiltered));
         }
 
-        if (skippedTooLarge > 0)
-        {
+        if (skippedTooLarge > 0) {
             ConsoleReport.Field("Skipped (too large)", ConsoleReport.Count(skippedTooLarge));
         }
 
-        if (!options.Quiet)
-        {
+        if (!options.Quiet) {
             result.Metrics.Report();
         }
 
@@ -305,10 +279,8 @@ internal static class Program
         BaselineOptions options,
         BaselineContainer container,
         string containerPath,
-        string? compareRoot)
-    {
-        if (container.Extension.Length > 0 && !File.Exists(containerPath))
-        {
+        string? compareRoot) {
+        if (container.Extension.Length > 0 && !File.Exists(containerPath)) {
             throw new FileNotFoundException($"Container '{containerPath}' does not exist.", containerPath);
         }
 
@@ -319,13 +291,11 @@ internal static class Program
         ConsoleReport.Field("Entries", ConsoleReport.Count(reader.Entries.Count));
         ConsoleReport.Field("Open time", ConsoleReport.Duration(openMetrics.Elapsed));
 
-        if (!options.Quiet)
-        {
+        if (!options.Quiet) {
             openMetrics.Report();
         }
 
-        if (options.List)
-        {
+        if (options.List) {
             ReportListing(reader, options.Top);
         }
 
@@ -336,8 +306,7 @@ internal static class Program
         long bytesVerified = 0;
         byte[] scratch = [];
 
-        for (int i = 0; i < reader.Entries.Count; i++)
-        {
+        for (int i = 0; i < reader.Entries.Count; i++) {
             BaselineEntry entry = reader.Entries[i];
             ReadOnlyMemory<byte> payload = reader.Read(i, ref scratch);
 
@@ -347,16 +316,14 @@ internal static class Program
             hasher.Append(payload.Span);
             ulong actual = hasher.GetCurrentHashAsUInt64();
 
-            if (payload.Length != entry.Length)
-            {
+            if (payload.Length != entry.Length) {
                 failed++;
                 ConsoleReport.Error(
                     $"length mismatch for '{entry.RelativePath}': index says {entry.Length}, payload has {payload.Length}.");
                 continue;
             }
 
-            if (entry.Checksum != 0 && actual != entry.Checksum)
-            {
+            if (entry.Checksum != 0 && actual != entry.Checksum) {
                 failed++;
                 ConsoleReport.Error(
                     $"checksum mismatch for '{entry.RelativePath}': expected {ConsoleReport.Checksum(entry.Checksum)}, got {ConsoleReport.Checksum(actual)}.");
@@ -373,26 +340,22 @@ internal static class Program
         ConsoleReport.Field("Bytes verified", ConsoleReport.Bytes(bytesVerified));
         ConsoleReport.Field("Verify time", ConsoleReport.Duration(verifyMetrics.Elapsed));
 
-        if (!options.Quiet)
-        {
+        if (!options.Quiet) {
             verifyMetrics.Report();
         }
 
         int sourceMatches = 0;
         int sourceMismatches = 0;
 
-        if (compareRoot is not null && Directory.Exists(compareRoot))
-        {
+        if (compareRoot is not null && Directory.Exists(compareRoot)) {
             (sourceMatches, sourceMismatches) = CompareWithSource(reader, compareRoot);
         }
 
-        if (options.ExtractDirectory is not null)
-        {
+        if (options.ExtractDirectory is not null) {
             Extract(reader, options.ExtractDirectory);
         }
 
-        return new LoadOutcome
-        {
+        return new LoadOutcome {
             VerifiedRecords = verified,
             FailedRecords = failed,
             BytesVerified = bytesVerified,
@@ -409,38 +372,31 @@ internal static class Program
     /// <param name="reader">Reader over the opened container</param>
     /// <param name="root">Folder holding the original files</param>
     /// <returns>A tuple of the number of matching files and the number of differing files</returns>
-    private static (int Matches, int Mismatches) CompareWithSource(ContainerReader reader, string root)
-    {
+    private static (int Matches, int Mismatches) CompareWithSource(ContainerReader reader, string root) {
         int matches = 0;
         int mismatches = 0;
         byte[] scratch = [];
 
-        for (int i = 0; i < reader.Entries.Count; i++)
-        {
+        for (int i = 0; i < reader.Entries.Count; i++) {
             BaselineEntry entry = reader.Entries[i];
             string full = Path.Combine(root, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar));
 
-            if (!File.Exists(full))
-            {
+            if (!File.Exists(full)) {
                 continue;
             }
 
             ReadOnlyMemory<byte> payload = reader.Read(i, ref scratch);
             byte[] original = File.ReadAllBytes(full);
 
-            if (payload.Span.SequenceEqual(original))
-            {
+            if (payload.Span.SequenceEqual(original)) {
                 matches++;
-            }
-            else
-            {
+            } else {
                 mismatches++;
                 ConsoleReport.Error($"content mismatch for '{entry.RelativePath}'.");
             }
         }
 
-        if (matches > 0 || mismatches > 0)
-        {
+        if (matches > 0 || mismatches > 0) {
             ConsoleReport.Field("Source matches", ConsoleReport.Count(matches));
         }
 
@@ -453,27 +409,23 @@ internal static class Program
     /// <param name="reader">Reader over the opened container</param>
     /// <param name="destination">Directory to write the files into</param>
     /// <exception cref="System.IO.IOException">A stored path attempts to escape the destination.</exception>
-    private static void Extract(ContainerReader reader, string destination)
-    {
+    private static void Extract(ContainerReader reader, string destination) {
         string fullDestination = Path.GetFullPath(destination);
         Directory.CreateDirectory(fullDestination);
         byte[] scratch = [];
 
-        for (int i = 0; i < reader.Entries.Count; i++)
-        {
+        for (int i = 0; i < reader.Entries.Count; i++) {
             BaselineEntry entry = reader.Entries[i];
             string target = Path.GetFullPath(
                 Path.Combine(fullDestination, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
 
-            if (!target.StartsWith(fullDestination, StringComparison.Ordinal))
-            {
+            if (!target.StartsWith(fullDestination, StringComparison.Ordinal)) {
                 throw new IOException($"Refusing to extract '{entry.RelativePath}' outside the destination.");
             }
 
             string? directory = Path.GetDirectoryName(target);
 
-            if (!string.IsNullOrEmpty(directory))
-            {
+            if (!string.IsNullOrEmpty(directory)) {
                 Directory.CreateDirectory(directory);
             }
 
@@ -490,15 +442,13 @@ internal static class Program
     /// </summary>
     /// <param name="reader">Reader over the opened container</param>
     /// <param name="top">Maximum number of rows to print</param>
-    private static void ReportListing(ContainerReader reader, int top)
-    {
+    private static void ReportListing(ContainerReader reader, int top) {
         ConsoleReport.Subheading("LISTING");
 
         int shown = Math.Min(top, reader.Entries.Count);
         List<string[]> rows = new(shown);
 
-        for (int i = 0; i < shown; i++)
-        {
+        for (int i = 0; i < shown; i++) {
             BaselineEntry entry = reader.Entries[i];
             rows.Add(
             [
@@ -510,8 +460,7 @@ internal static class Program
 
         ConsoleReport.Table(["path", "size", "checksum"], rows, [false, true, false]);
 
-        if (reader.Entries.Count > shown)
-        {
+        if (reader.Entries.Count > shown) {
             ConsoleReport.Line($"... and {reader.Entries.Count - shown} more.");
         }
     }
@@ -521,19 +470,16 @@ internal static class Program
     /// </summary>
     /// <param name="outcome">Result of the load and verification run</param>
     /// <returns><see cref="ExitSuccess" /> when everything verified; otherwise <see cref="ExitVerificationFailed" /></returns>
-    private static int Summarize(LoadOutcome outcome)
-    {
+    private static int Summarize(LoadOutcome outcome) {
         ConsoleReport.Heading("RESULT");
 
-        if (outcome.Success)
-        {
+        if (outcome.Success) {
             ConsoleReport.Always(
                 $"OK: {ConsoleReport.Count(outcome.VerifiedRecords)} entries verified, " +
                 $"{ConsoleReport.Bytes(outcome.BytesVerified)} read, " +
                 $"opened in {ConsoleReport.Duration(outcome.OpenMetrics.Elapsed)}.");
 
-            if (outcome.SourceMatches > 0)
-            {
+            if (outcome.SourceMatches > 0) {
                 ConsoleReport.Always(
                     $"OK: {ConsoleReport.Count(outcome.SourceMatches)} files are byte-identical to the source tree.");
             }
@@ -561,10 +507,8 @@ internal static class Program
         BaselineContainer container,
         RunMetrics? pack,
         RunMetrics? open,
-        RunMetrics? verify)
-    {
-        if (!options.Csv)
-        {
+        RunMetrics? verify) {
+        if (!options.Csv) {
             return;
         }
 
@@ -581,23 +525,19 @@ internal static class Program
     /// <param name="root">Folder being packed, used to derive a default name</param>
     /// <param name="container">Container strategy, whose extension shapes the default name</param>
     /// <returns>The fully qualified path of the container to write</returns>
-    private static string ResolveContainerPath(BaselineOptions options, string root, BaselineContainer container)
-    {
-        if (container.Extension.Length == 0)
-        {
+    private static string ResolveContainerPath(BaselineOptions options, string root, BaselineContainer container) {
+        if (container.Extension.Length == 0) {
             // Loose writes no file; the folder itself is the container.
             return root;
         }
 
-        if (options.OutputPath is not null)
-        {
+        if (options.OutputPath is not null) {
             return Path.GetFullPath(options.OutputPath);
         }
 
         string name = new DirectoryInfo(root).Name;
 
-        if (string.IsNullOrWhiteSpace(name))
-        {
+        if (string.IsNullOrWhiteSpace(name)) {
             name = "container";
         }
 
@@ -611,15 +551,12 @@ internal static class Program
     /// <param name="root">Generated tree, used as the container for the loose mode</param>
     /// <param name="container">Container strategy, whose extension shapes the default name</param>
     /// <returns>The fully qualified path of the container to write</returns>
-    private static string ResolveDemoContainerPath(BaselineOptions options, string root, BaselineContainer container)
-    {
-        if (container.Extension.Length == 0)
-        {
+    private static string ResolveDemoContainerPath(BaselineOptions options, string root, BaselineContainer container) {
+        if (container.Extension.Length == 0) {
             return root;
         }
 
-        if (options.OutputPath is not null)
-        {
+        if (options.OutputPath is not null) {
             return Path.GetFullPath(options.OutputPath);
         }
 
@@ -631,17 +568,12 @@ internal static class Program
     /// Deletes a file, reporting rather than throwing when it cannot be removed
     /// </summary>
     /// <param name="path">Fully qualified path of the file to delete</param>
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
+    private static void TryDelete(string path) {
+        try {
+            if (File.Exists(path)) {
                 File.Delete(path);
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             ConsoleReport.Warn($"could not delete '{path}': {ex.Message}");
         }
     }
@@ -649,49 +581,62 @@ internal static class Program
     /// <summary>
     /// Summarizes the outcome of a load and verification run
     /// </summary>
-    private sealed class LoadOutcome
-    {
+    private sealed class LoadOutcome {
         /// <summary>
         /// Gets the number of entries whose contents matched their stored length and checksum
         /// </summary>
         /// <value>Equal to the entry count on a healthy container.</value>
-        public required int VerifiedRecords { get; init; }
+        public required int VerifiedRecords {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the number of entries whose contents did not match
         /// </summary>
         /// <value>Zero on a healthy container.</value>
-        public required int FailedRecords { get; init; }
+        public required int FailedRecords {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the total number of payload bytes read during verification
         /// </summary>
         /// <value>The sum of the lengths of every verified entry.</value>
-        public required long BytesVerified { get; init; }
+        public required long BytesVerified {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the number of files that matched the original tree byte for byte
         /// </summary>
         /// <value>Zero when no source comparison was requested.</value>
-        public required int SourceMatches { get; init; }
+        public required int SourceMatches {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the number of files that differed from the original tree
         /// </summary>
         /// <value>Zero when the container faithfully reproduces the source tree.</value>
-        public required int SourceMismatches { get; init; }
+        public required int SourceMismatches {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the metrics captured while opening the container
         /// </summary>
         /// <value>Covers reading whatever index the container keeps.</value>
-        public required RunMetrics OpenMetrics { get; init; }
+        public required RunMetrics OpenMetrics {
+            get; init;
+        }
 
         /// <summary>
         /// Gets the metrics captured while reading and verifying every entry
         /// </summary>
         /// <value>Covers the read path being profiled.</value>
-        public required RunMetrics VerifyMetrics { get; init; }
+        public required RunMetrics VerifyMetrics {
+            get; init;
+        }
 
         /// <summary>
         /// Gets a value indicating whether the run completed without any detected problem

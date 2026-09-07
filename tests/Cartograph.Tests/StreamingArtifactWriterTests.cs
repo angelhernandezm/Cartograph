@@ -43,8 +43,7 @@ namespace Cartograph.Tests;
 /// the batch writer, ingestion of sources whose length is not known in advance, and the guard rails
 /// around segment and artifact lifetime.
 /// </summary>
-public class StreamingArtifactWriterTests
-{
+public class StreamingArtifactWriterTests {
     /// <summary>
     /// Verifies that records appended as spans read back byte-for-byte under both chunk source
     /// kinds, with checksum verification enabled.
@@ -53,8 +52,7 @@ public class StreamingArtifactWriterTests
     [Theory]
     [InlineData(ChunkSourceKind.Mapped)]
     [InlineData(ChunkSourceKind.RandomAccess)]
-    public void SpanRecords_RoundTrip(ChunkSourceKind kind)
-    {
+    public void SpanRecords_RoundTrip(ChunkSourceKind kind) {
         byte[][] payloads =
         [
             TestArtifacts.Pattern(1, 7),
@@ -67,12 +65,9 @@ public class StreamingArtifactWriterTests
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (StreamingSegment segment = writer.BeginSegment())
-            {
-                for (int i = 0; i < payloads.Length; i++)
-                {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (StreamingSegment segment = writer.BeginSegment()) {
+                for (int i = 0; i < payloads.Length; i++) {
                     Assert.Equal(i, segment.AppendRecord(payloads[i]));
                 }
             }
@@ -80,12 +75,13 @@ public class StreamingArtifactWriterTests
             writer.Complete();
         }
 
-        ArtifactOpenOptions options = new() { ChunkSource = kind, VerifyChecksums = true };
+        ArtifactOpenOptions options = new() {
+            ChunkSource = kind, VerifyChecksums = true
+        };
         using Artifact artifact = Artifact.Open(path, options);
 
         Assert.Equal(payloads.Length, artifact.RecordCount);
-        for (int i = 0; i < payloads.Length; i++)
-        {
+        for (int i = 0; i < payloads.Length; i++) {
             using RecordLease lease = artifact.ReadRecord(i);
             Assert.Equal(payloads[i], lease.ToArray());
         }
@@ -96,18 +92,15 @@ public class StreamingArtifactWriterTests
     /// case the batch writer cannot express.
     /// </summary>
     [Fact]
-    public void UnknownLengthStream_RoundTrips()
-    {
+    public void UnknownLengthStream_RoundTrips() {
         byte[] first = TestArtifacts.Pattern(5_000, 3);
         byte[] second = TestArtifacts.Pattern(1_500_000, 23);
 
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (StreamingSegment segment = writer.BeginSegment())
-            {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (StreamingSegment segment = writer.BeginSegment()) {
                 segment.AppendRecord(new UnknownLengthStream(first));
                 segment.AppendRecord(new UnknownLengthStream(second));
             }
@@ -130,17 +123,14 @@ public class StreamingArtifactWriterTests
     /// </summary>
     /// <returns>A task that completes when the assertion has run.</returns>
     [Fact]
-    public async Task AsyncStreamAppend_RoundTrips()
-    {
+    public async Task AsyncStreamAppend_RoundTrips() {
         byte[] payload = TestArtifacts.Pattern(300_000, 29);
 
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (StreamingSegment segment = writer.BeginSegment())
-            {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (StreamingSegment segment = writer.BeginSegment()) {
                 Assert.Equal(0, await segment.AppendRecordAsync(new UnknownLengthStream(payload)));
             }
 
@@ -157,8 +147,7 @@ public class StreamingArtifactWriterTests
     /// when the callback forces the staging buffer to drain and to grow beyond its initial size.
     /// </summary>
     [Fact]
-    public void BufferWriterRecord_RoundTrips()
-    {
+    public void BufferWriterRecord_RoundTrips() {
         byte[] small = TestArtifacts.Pattern(300, 31);
         byte[] large = TestArtifacts.Pattern(400_000, 37);
         byte[] oversizedHint = TestArtifacts.Pattern(200_000, 41);
@@ -166,15 +155,11 @@ public class StreamingArtifactWriterTests
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (StreamingSegment segment = writer.BeginSegment())
-            {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (StreamingSegment segment = writer.BeginSegment()) {
                 // Many small writes, exercising repeated drains of the staging buffer.
-                segment.AppendRecord(w =>
-                {
-                    for (int i = 0; i < large.Length; i += small.Length)
-                    {
+                segment.AppendRecord(w => {
+                    for (int i = 0; i < large.Length; i += small.Length) {
                         int take = Math.Min(small.Length, large.Length - i);
                         large.AsSpan(i, take).CopyTo(w.GetSpan(take));
                         w.Advance(take);
@@ -182,8 +167,7 @@ public class StreamingArtifactWriterTests
                 });
 
                 // A single request larger than the initial buffer, forcing a grow.
-                segment.AppendRecord(w =>
-                {
+                segment.AppendRecord(w => {
                     oversizedHint.CopyTo(w.GetSpan(oversizedHint.Length));
                     w.Advance(oversizedHint.Length);
                 });
@@ -205,15 +189,13 @@ public class StreamingArtifactWriterTests
     /// writer given the same records, confirming it is a second write path and not a second format.
     /// </summary>
     [Fact]
-    public void StreamedArtifact_IsByteIdenticalToBatchWriter()
-    {
+    public void StreamedArtifact_IsByteIdenticalToBatchWriter() {
         byte[][] first = [TestArtifacts.Pattern(1_000, 2), TestArtifacts.Pattern(4_096, 4)];
         byte[][] second = [TestArtifacts.Pattern(77, 6)];
 
         string sourceDirectory = Path.Combine(Path.GetTempPath(), $"cartograph-src-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sourceDirectory);
-        try
-        {
+        try {
             string[] firstPaths = WriteAll(sourceDirectory, first, "a");
             string[] secondPaths = WriteAll(sourceDirectory, second, "b");
 
@@ -226,45 +208,37 @@ public class StreamingArtifactWriterTests
             // the input shape where the two writers are expected to agree exactly.
             SegmentedArtifactWriter batch = new();
             SegmentBuilder batchFirst = batch.AddSegment();
-            foreach (string p in firstPaths)
-            {
+            foreach (string p in firstPaths) {
                 batchFirst.AddFileRecord(p);
             }
 
             SegmentBuilder batchSecond = batch.AddSegment();
-            foreach (string p in secondPaths)
-            {
+            foreach (string p in secondPaths) {
                 batchSecond.AddFileRecord(p);
             }
 
             batch.Save(batchPath);
 
-            using (StreamingArtifactWriter streamed = new(streamedPath))
-            {
+            using (StreamingArtifactWriter streamed = new(streamedPath)) {
                 AppendFiles(streamed, firstPaths);
                 AppendFiles(streamed, secondPaths);
                 streamed.Complete();
             }
 
             Assert.Equal(File.ReadAllBytes(batchPath), File.ReadAllBytes(streamedPath));
-        }
-        finally
-        {
+        } finally {
             Directory.Delete(sourceDirectory, recursive: true);
         }
     }
 
     /// <summary>Verifies that a segment holding no records produces a readable, empty segment.</summary>
     [Fact]
-    public void EmptySegment_IsValid()
-    {
+    public void EmptySegment_IsValid() {
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (writer.BeginSegment())
-            {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (writer.BeginSegment()) {
             }
 
             writer.Complete();
@@ -277,21 +251,17 @@ public class StreamingArtifactWriterTests
 
     /// <summary>Verifies that segment ids and record indices are preserved across multiple segments.</summary>
     [Fact]
-    public void MultipleSegments_PreserveIdsAndOrder()
-    {
+    public void MultipleSegments_PreserveIdsAndOrder() {
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
-        using (StreamingArtifactWriter writer = new(path))
-        {
-            using (StreamingSegment a = writer.BeginSegment(10u))
-            {
+        using (StreamingArtifactWriter writer = new(path)) {
+            using (StreamingSegment a = writer.BeginSegment(10u)) {
                 a.AppendRecord(TestArtifacts.Pattern(100, 1));
                 a.AppendRecord(TestArtifacts.Pattern(200, 2));
             }
 
-            using (StreamingSegment b = writer.BeginSegment(20u))
-            {
+            using (StreamingSegment b = writer.BeginSegment(20u)) {
                 b.AppendRecord(TestArtifacts.Pattern(300, 3));
             }
 
@@ -309,8 +279,7 @@ public class StreamingArtifactWriterTests
 
     /// <summary>Verifies that opening a second segment while one is still open is rejected.</summary>
     [Fact]
-    public void BeginSegment_WhileSegmentOpen_Throws()
-    {
+    public void BeginSegment_WhileSegmentOpen_Throws() {
         using MemoryStream destination = new();
         using StreamingArtifactWriter writer = new(destination);
 
@@ -320,8 +289,7 @@ public class StreamingArtifactWriterTests
 
     /// <summary>Verifies that completing the artifact while a segment is open is rejected.</summary>
     [Fact]
-    public void Complete_WithOpenSegment_Throws()
-    {
+    public void Complete_WithOpenSegment_Throws() {
         using MemoryStream destination = new();
         using StreamingArtifactWriter writer = new(destination);
 
@@ -331,8 +299,7 @@ public class StreamingArtifactWriterTests
 
     /// <summary>Verifies that appending to a segment after it has been completed is rejected.</summary>
     [Fact]
-    public void AppendRecord_AfterSegmentCompleted_Throws()
-    {
+    public void AppendRecord_AfterSegmentCompleted_Throws() {
         using MemoryStream destination = new();
         using StreamingArtifactWriter writer = new(destination);
 
@@ -344,8 +311,7 @@ public class StreamingArtifactWriterTests
 
     /// <summary>Verifies that a non-seekable destination is rejected, since the header is patched last.</summary>
     [Fact]
-    public void NonSeekableDestination_Throws()
-    {
+    public void NonSeekableDestination_Throws() {
         using NonSeekableStream destination = new();
         Assert.Throws<ArgumentException>(() => new StreamingArtifactWriter(destination));
     }
@@ -355,11 +321,9 @@ public class StreamingArtifactWriterTests
     /// <param name="payloads">The payloads to write, one file per entry.</param>
     /// <param name="prefix">A prefix distinguishing this batch of files.</param>
     /// <returns>The paths of the written files, in the order the payloads were supplied.</returns>
-    private static string[] WriteAll(string directory, byte[][] payloads, string prefix)
-    {
+    private static string[] WriteAll(string directory, byte[][] payloads, string prefix) {
         string[] paths = new string[payloads.Length];
-        for (int i = 0; i < payloads.Length; i++)
-        {
+        for (int i = 0; i < payloads.Length; i++) {
             paths[i] = Path.Combine(directory, $"{prefix}-{i}.bin");
             File.WriteAllBytes(paths[i], payloads[i]);
         }
@@ -370,11 +334,9 @@ public class StreamingArtifactWriterTests
     /// <summary>Appends each file as one record of a new segment, streaming it from disk.</summary>
     /// <param name="writer">The writer to append the segment to.</param>
     /// <param name="paths">The paths of the files to append, in record order.</param>
-    private static void AppendFiles(StreamingArtifactWriter writer, string[] paths)
-    {
+    private static void AppendFiles(StreamingArtifactWriter writer, string[] paths) {
         using StreamingSegment segment = writer.BeginSegment();
-        foreach (string path in paths)
-        {
+        foreach (string path in paths) {
             using FileStream file = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             segment.AppendRecord(file);
         }
@@ -385,8 +347,7 @@ public class StreamingArtifactWriterTests
     /// network response body whose size is not known before it has been consumed.
     /// </summary>
     /// <param name="payload">The bytes the stream yields.</param>
-    private sealed class UnknownLengthStream(byte[] payload) : Stream
-    {
+    private sealed class UnknownLengthStream(byte[] payload) : Stream {
         /// <summary>The bytes this stream yields.</summary>
         private readonly byte[] _payload = payload;
 
@@ -394,29 +355,32 @@ public class StreamingArtifactWriterTests
         private int _position;
 
         /// <summary>Always <see langword="true"/>; the stream is readable.</summary>
+        /// <value>Always <see langword="true"/>; the stream is readable.</value>
         public override bool CanRead => true;
 
         /// <summary>Always <see langword="false"/>; the stream is forward-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is forward-only.</value>
         public override bool CanSeek => false;
 
         /// <summary>Always <see langword="false"/>; the stream is read-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is read-only.</value>
         public override bool CanWrite => false;
 
         /// <summary>Always throws, because the length is deliberately unknown.</summary>
+        /// <value>Always throws, because the length is deliberately unknown.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Length => throw new NotSupportedException();
 
         /// <summary>Always throws, because the stream is forward-only.</summary>
+        /// <value>Always throws, because the stream is forward-only.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
-        public override long Position
-        {
+        public override long Position {
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
 
         /// <summary>Does nothing; there is no destination to flush.</summary>
-        public override void Flush()
-        {
+        public override void Flush() {
         }
 
         /// <summary>Reads at most 7,777 bytes at a time, so callers must handle short reads.</summary>
@@ -424,11 +388,9 @@ public class StreamingArtifactWriterTests
         /// <param name="offset">The offset within <paramref name="buffer"/> to begin writing at.</param>
         /// <param name="count">The maximum number of bytes to read.</param>
         /// <returns>The number of bytes read, or zero at end of stream.</returns>
-        public override int Read(byte[] buffer, int offset, int count)
-        {
+        public override int Read(byte[] buffer, int offset, int count) {
             int take = Math.Min(Math.Min(count, 7_777), _payload.Length - _position);
-            if (take <= 0)
-            {
+            if (take <= 0) {
                 return 0;
             }
 
@@ -458,32 +420,34 @@ public class StreamingArtifactWriterTests
     }
 
     /// <summary>A writable stream that reports itself as non-seekable, used to test the guard.</summary>
-    private sealed class NonSeekableStream : Stream
-    {
+    private sealed class NonSeekableStream : Stream {
         /// <summary>Always <see langword="false"/>; the stream is write-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is write-only.</value>
         public override bool CanRead => false;
 
         /// <summary>Always <see langword="false"/>; this is the behaviour under test.</summary>
+        /// <value>Always <see langword="false"/>; this is the behaviour under test.</value>
         public override bool CanSeek => false;
 
         /// <summary>Always <see langword="true"/>; the stream accepts writes.</summary>
+        /// <value>Always <see langword="true"/>; the stream accepts writes.</value>
         public override bool CanWrite => true;
 
         /// <summary>Always throws, because the stream is not seekable.</summary>
+        /// <value>Always throws, because the stream is not seekable.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Length => throw new NotSupportedException();
 
         /// <summary>Always throws, because the stream is not seekable.</summary>
+        /// <value>Always throws, because the stream is not seekable.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
-        public override long Position
-        {
+        public override long Position {
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
 
         /// <summary>Does nothing; writes are discarded.</summary>
-        public override void Flush()
-        {
+        public override void Flush() {
         }
 
         /// <summary>Always throws, because the stream is write-only.</summary>
@@ -510,8 +474,7 @@ public class StreamingArtifactWriterTests
         /// <param name="buffer">The buffer whose bytes are discarded.</param>
         /// <param name="offset">Ignored.</param>
         /// <param name="count">Ignored.</param>
-        public override void Write(byte[] buffer, int offset, int count)
-        {
+        public override void Write(byte[] buffer, int offset, int count) {
         }
     }
 }

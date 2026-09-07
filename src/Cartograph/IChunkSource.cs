@@ -43,8 +43,10 @@ namespace Cartograph;
 /// it is a rented buffer. In both cases the sequence is only valid until the lease is disposed, and
 /// disposal releases the underlying resource (leases or the pooled buffer).
 /// </remarks>
-public sealed class ChunkLease : IDisposable
-{
+public sealed class ChunkLease : IDisposable {
+    /// <summary>
+    /// The object owning the memory behind the sequence, exchanged for <c>null</c> when it is disposed.
+    /// </summary>
     private IDisposable? _owner;
 
     /// <summary>
@@ -62,18 +64,19 @@ public sealed class ChunkLease : IDisposable
     /// The disposable owner that backs the sequence; released on <see cref="Dispose"/>. May be
     /// <see langword="null"/> when the backing memory requires no cleanup.
     /// </param>
-    public ChunkLease(ReadOnlySequence<byte> sequence, IDisposable? owner)
-    {
+    public ChunkLease(ReadOnlySequence<byte> sequence, IDisposable? owner) {
         Sequence = sequence;
         _owner = owner;
     }
 
     /// <summary>The chunk bytes. Valid only until this lease is disposed.</summary>
-    public ReadOnlySequence<byte> Sequence { get; }
+    /// <value>The chunk bytes. Valid only until this lease is disposed.</value>
+    public ReadOnlySequence<byte> Sequence {
+        get;
+    }
 
     /// <summary>Releases the backing resource. Safe to call more than once.</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         IDisposable? owner = Interlocked.Exchange(ref _owner, null);
         owner?.Dispose();
     }
@@ -140,10 +143,12 @@ public sealed class ChunkLease : IDisposable
 /// corruption.
 /// </para>
 /// </remarks>
-public interface IChunkSource : IDisposable
-{
+public interface IChunkSource : IDisposable {
     /// <summary>The total length of the underlying file in bytes. Must not change over the source's lifetime.</summary>
-    long Length { get; }
+    /// <value>The total length of the underlying file in bytes. Must not change over the source's lifetime.</value>
+    long Length {
+        get;
+    }
 
     /// <summary>Reads <c>[offset, offset + length)</c> and returns it as a disposable chunk.</summary>
     /// <param name="offset">The absolute byte offset within the file to start reading from.</param>

@@ -38,8 +38,7 @@ namespace Cartograph.Tests;
 /// <summary>
 /// Tests that verify write-then-read round-trips produce byte-identical records.
 /// </summary>
-public class RoundTripTests
-{
+public class RoundTripTests {
     /// <summary>
     /// Verifies that records written to an artifact are read back identically when using
     /// both the <see cref="ChunkSourceKind.Mapped"/> and <see cref="ChunkSourceKind.RandomAccess"/> sources.
@@ -48,8 +47,7 @@ public class RoundTripTests
     [Theory]
     [InlineData(ChunkSourceKind.Mapped)]
     [InlineData(ChunkSourceKind.RandomAccess)]
-    public void WriteThenReopen_ReturnsIdenticalRecords(ChunkSourceKind kind)
-    {
+    public void WriteThenReopen_ReturnsIdenticalRecords(ChunkSourceKind kind) {
         byte[][] records =
         [
             TestArtifacts.Pattern(16, 1),
@@ -61,15 +59,16 @@ public class RoundTripTests
         string path = TestArtifacts.WriteSingleSegment(records);
         using TempFile temp = new(path);
 
-        ArtifactOpenOptions options = new() { ChunkSource = kind };
+        ArtifactOpenOptions options = new() {
+            ChunkSource = kind
+        };
         using Artifact artifact = Artifact.Open(path, options);
 
         Assert.Equal(kind, artifact.SourceKind);
         Assert.Single(artifact.Segments);
         Assert.Equal(records.Length, artifact.RecordCount);
 
-        for (int i = 0; i < records.Length; i++)
-        {
+        for (int i = 0; i < records.Length; i++) {
             using RecordLease lease = artifact.ReadRecord(i);
             Assert.Equal(records[i], lease.ToArray());
             Assert.Equal(records[i].Length, lease.Length);
@@ -81,8 +80,7 @@ public class RoundTripTests
     /// declaration order, with correct segment IDs and record count.
     /// </summary>
     [Fact]
-    public void MultipleSegments_EnumerateInOrder()
-    {
+    public void MultipleSegments_EnumerateInOrder() {
         string path = TestArtifacts.NewTempPath();
         using TempFile temp = new(path);
 
@@ -108,9 +106,9 @@ public class RoundTripTests
     /// Verifies that <see cref="ArtifactSegment.ReadRecordAsync"/> returns bytes
     /// identical to the synchronous <see cref="ArtifactSegment.ReadRecord"/> path.
     /// </summary>
+    /// <returns>A <see cref="Task"/> that completes when the assertion has run.</returns>
     [Fact]
-    public async Task ReadRecordAsync_MatchesSync()
-    {
+    public async Task ReadRecordAsync_MatchesSync() {
         byte[] record = TestArtifacts.Pattern(2048, 9);
         string path = TestArtifacts.WriteSingleSegment([record]);
         using TempFile temp = new(path);

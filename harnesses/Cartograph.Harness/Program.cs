@@ -38,13 +38,10 @@ namespace Cartograph.Harness;
 /// <summary>
 /// Hosts the entry point of the harness executable
 /// </summary>
-/// <remarks>
-/// The harness is a worked example rather than a product: it demonstrates the complete lifecycle of
+/// <remarks>The harness is a worked example rather than a product: it demonstrates the complete lifecycle of
 /// a Cartograph artifact by packing a folder tree into one, closing it, reopening it from scratch
-/// and proving that every byte survived the round trip.
-/// </remarks>
-internal static class Program
-{
+/// and proving that every byte survived the round trip.</remarks>
+internal static class Program {
     /// <summary>
     /// Exit code reported when the requested work completed successfully
     /// </summary>
@@ -75,10 +72,8 @@ internal static class Program
     /// </summary>
     /// <param name="args">Command line arguments</param>
     /// <returns>A process exit code describing the outcome of the run</returns>
-    public static async Task<int> Main(string[] args)
-    {
-        if (!HarnessOptions.TryParse(args, out HarnessOptions? options, out string? error))
-        {
+    public static async Task<int> Main(string[] args) {
+        if (!HarnessOptions.TryParse(args, out HarnessOptions? options, out string? error)) {
             ConsoleReport.Error(error!);
             Console.Error.WriteLine();
             HarnessOptions.PrintUsage();
@@ -87,21 +82,17 @@ internal static class Program
 
         ConsoleReport.Quiet = options!.Quiet;
 
-        if (options.Command == HarnessCommand.Help)
-        {
+        if (options.Command == HarnessCommand.Help) {
             HarnessOptions.PrintUsage();
             return ExitSuccess;
         }
 
-        if (options.Csv)
-        {
+        if (options.Csv) {
             RunMetrics.ReportCsvHeader();
         }
 
-        try
-        {
-            return options.Command switch
-            {
+        try {
+            return options.Command switch {
                 HarnessCommand.Pack => RunPack(options),
                 HarnessCommand.Load => await RunLoadAsync(options).ConfigureAwait(false),
                 HarnessCommand.Roundtrip => await RunRoundtripAsync(options).ConfigureAwait(false),
@@ -109,18 +100,14 @@ internal static class Program
                 HarnessCommand.Manifest => RunManifest(options),
                 _ => ExitUsage,
             };
-        }
-        catch (CartographFormatException ex)
-        {
+        } catch (CartographFormatException ex) {
             ConsoleReport.Error($"the artifact is not readable: {ex.Message}");
             return ExitFailure;
-        }
-        catch (Exception ex) when (ex is IOException
-                                   or UnauthorizedAccessException
-                                   or InvalidDataException
-                                   or InvalidOperationException
-                                   or ArgumentException)
-        {
+        } catch (Exception ex) when (ex is IOException
+                                     or UnauthorizedAccessException
+                                     or InvalidDataException
+                                     or InvalidOperationException
+                                     or ArgumentException) {
             ConsoleReport.Error(ex.Message);
             return ExitFailure;
         }
@@ -131,8 +118,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunPack(HarnessOptions options)
-    {
+    private static int RunPack(HarnessOptions options) {
         string root = Path.GetFullPath(options.InputPath!);
         string artifactPath = ResolveArtifactPath(options, root);
 
@@ -154,8 +140,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static async Task<int> RunLoadAsync(HarnessOptions options)
-    {
+    private static async Task<int> RunLoadAsync(HarnessOptions options) {
         string artifactPath = Path.GetFullPath(options.InputPath!);
 
         ConsoleReport.Heading("LOAD");
@@ -172,8 +157,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static async Task<int> RunRoundtripAsync(HarnessOptions options)
-    {
+    private static async Task<int> RunRoundtripAsync(HarnessOptions options) {
         string root = Path.GetFullPath(options.InputPath!);
         string artifactPath = ResolveArtifactPath(options, root);
 
@@ -204,20 +188,17 @@ internal static class Program
     /// </remarks>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static int RunManifest(HarnessOptions options)
-    {
+    private static int RunManifest(HarnessOptions options) {
         string artifactPath = Path.GetFullPath(options.InputPath!);
         var file = new FileInfo(artifactPath);
 
-        if (!file.Exists)
-        {
+        if (!file.Exists) {
             ConsoleReport.Error($"artifact not found: {artifactPath}");
             return ExitFailure;
         }
 
         // Checksum verification is a read-path concern; opening for structure alone must not pay it.
-        var openOptions = new ArtifactOpenOptions
-        {
+        var openOptions = new ArtifactOpenOptions {
             ChunkSource = options.Strategy,
             VerifyChecksums = false,
         };
@@ -236,8 +217,7 @@ internal static class Program
         ConsoleReport.Field("Read strategy", artifact.SourceKind.ToString().ToLowerInvariant());
 
         // ContentLength is written before the file is closed, so a mismatch means truncation.
-        if ((long)header.ContentLength != file.Length)
-        {
+        if ((long)header.ContentLength != file.Length) {
             ConsoleReport.Warn(
                 $"content length ({header.ContentLength:N0}) does not match the file size " +
                 $"({file.Length:N0}); the artifact may be truncated.");
@@ -248,8 +228,7 @@ internal static class Program
         var rows = new List<string[]>(artifact.Segments.Count);
         long payloadTotal = 0;
 
-        foreach (ArtifactSegment segment in artifact.Segments)
-        {
+        foreach (ArtifactSegment segment in artifact.Segments) {
             payloadTotal += segment.DataLength;
             rows.Add(
             [
@@ -282,8 +261,7 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line</param>
     /// <returns>A process exit code describing the outcome</returns>
-    private static async Task<int> RunDemoAsync(HarnessOptions options)
-    {
+    private static async Task<int> RunDemoAsync(HarnessOptions options) {
         ConsoleReport.Heading("DEMO TREE");
 
         using DemoTree tree = DemoTree.Create(options.DemoFileCount, options.CleanupDemo);
@@ -309,12 +287,9 @@ internal static class Program
         EmitLoadCsv(options, loaded);
         int exitCode = Summarize(loaded);
 
-        if (options.CleanupDemo)
-        {
+        if (options.CleanupDemo) {
             TryDelete(artifactPath);
-        }
-        else
-        {
+        } else {
             ConsoleReport.Line($"Kept the demo tree at {tree.Root}");
             ConsoleReport.Line($"Kept the artifact at {artifactPath}");
         }
@@ -326,8 +301,7 @@ internal static class Program
     /// Prints the outcome of a packing run
     /// </summary>
     /// <param name="result">Result to describe</param>
-    private static void ReportPack(PackResult result)
-    {
+    private static void ReportPack(PackResult result) {
         ConsoleReport.Field("Files packed", ConsoleReport.Count(result.Catalog.Entries.Count));
         ConsoleReport.Field("Records written", ConsoleReport.Count(result.RecordsWritten));
         ConsoleReport.Field("Payload bytes", ConsoleReport.Bytes(result.Catalog.TotalBytes));
@@ -336,23 +310,19 @@ internal static class Program
         ConsoleReport.Field("Scan time", ConsoleReport.Duration(result.ScanElapsed));
         ConsoleReport.Field("Write time", ConsoleReport.Duration(result.WriteElapsed));
 
-        if (result.SkippedFiltered > 0)
-        {
+        if (result.SkippedFiltered > 0) {
             ConsoleReport.Field("Skipped (filtered)", ConsoleReport.Count(result.SkippedFiltered));
         }
 
-        if (result.SkippedTooLarge > 0)
-        {
+        if (result.SkippedTooLarge > 0) {
             ConsoleReport.Field("Skipped (too large)", ConsoleReport.Count(result.SkippedTooLarge));
         }
 
-        if (result.SkippedUnreadable > 0)
-        {
+        if (result.SkippedUnreadable > 0) {
             ConsoleReport.Field("Skipped (unreadable)", ConsoleReport.Count(result.SkippedUnreadable));
         }
 
-        if (result.StopReason is not null)
-        {
+        if (result.StopReason is not null) {
             ConsoleReport.Warn(result.StopReason);
         }
     }
@@ -362,19 +332,16 @@ internal static class Program
     /// </summary>
     /// <param name="result">Result of the load and verification run</param>
     /// <returns><see cref="ExitSuccess" /> when everything verified; otherwise <see cref="ExitVerificationFailed" /></returns>
-    private static int Summarize(LoadResult result)
-    {
+    private static int Summarize(LoadResult result) {
         ConsoleReport.Heading("RESULT");
 
-        if (result.Success)
-        {
+        if (result.Success) {
             ConsoleReport.Always(
                 $"OK: {ConsoleReport.Count(result.VerifiedRecords)} records verified, " +
                 $"{ConsoleReport.Bytes(result.BytesVerified)} read, " +
                 $"opened in {ConsoleReport.Duration(result.OpenElapsed)}.");
 
-            if (result.SourceMatches > 0)
-            {
+            if (result.SourceMatches > 0) {
                 ConsoleReport.Always(
                     $"OK: {ConsoleReport.Count(result.SourceMatches)} files are byte-identical to the source tree.");
             }
@@ -394,10 +361,8 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line, which decides whether CSV is emitted</param>
     /// <param name="result">Pack result carrying the metrics to emit</param>
-    private static void EmitPackCsv(HarnessOptions options, PackResult result)
-    {
-        if (options.Csv)
-        {
+    private static void EmitPackCsv(HarnessOptions options, PackResult result) {
+        if (options.Csv) {
             result.Metrics.ReportCsv(Label(options));
         }
     }
@@ -407,10 +372,8 @@ internal static class Program
     /// </summary>
     /// <param name="options">Parsed command line, which decides whether CSV is emitted</param>
     /// <param name="result">Load result carrying the metrics to emit</param>
-    private static void EmitLoadCsv(HarnessOptions options, LoadResult result)
-    {
-        if (!options.Csv)
-        {
+    private static void EmitLoadCsv(HarnessOptions options, LoadResult result) {
+        if (!options.Csv) {
             return;
         }
 
@@ -433,17 +396,14 @@ internal static class Program
     /// <param name="options">Parsed command line, which may carry an explicit output path</param>
     /// <param name="root">Folder being packed, used to derive a default name</param>
     /// <returns>The fully qualified path of the artifact to write</returns>
-    private static string ResolveArtifactPath(HarnessOptions options, string root)
-    {
-        if (options.OutputPath is not null)
-        {
+    private static string ResolveArtifactPath(HarnessOptions options, string root) {
+        if (options.OutputPath is not null) {
             return Path.GetFullPath(options.OutputPath);
         }
 
         string name = new DirectoryInfo(root).Name;
 
-        if (string.IsNullOrWhiteSpace(name))
-        {
+        if (string.IsNullOrWhiteSpace(name)) {
             name = "artifact";
         }
 
@@ -454,17 +414,12 @@ internal static class Program
     /// Deletes a file, reporting rather than throwing when it cannot be removed
     /// </summary>
     /// <param name="path">Fully qualified path of the file to delete</param>
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
+    private static void TryDelete(string path) {
+        try {
+            if (File.Exists(path)) {
                 File.Delete(path);
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             ConsoleReport.Warn($"could not delete '{path}': {ex.Message}");
         }
     }

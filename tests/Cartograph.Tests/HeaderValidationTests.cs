@@ -39,16 +39,13 @@ namespace Cartograph.Tests;
 /// <summary>
 /// Tests that validate <see cref="ArtifactHeader"/> parsing and error handling.
 /// </summary>
-public class HeaderValidationTests
-{
+public class HeaderValidationTests {
     /// <summary>
     /// Builds and returns a valid serialized <see cref="ArtifactHeader"/> byte buffer.
     /// </summary>
     /// <returns>A byte array containing a well-formed artifact header.</returns>
-    private static byte[] ValidHeader()
-    {
-        ArtifactHeader header = new()
-        {
+    private static byte[] ValidHeader() {
+        ArtifactHeader header = new() {
             VersionMajor = ArtifactFormat.VersionMajor,
             VersionMinor = ArtifactFormat.VersionMinor,
             PointerSize = 8,
@@ -65,8 +62,7 @@ public class HeaderValidationTests
     /// Verifies that a valid header serializes and deserializes its fields correctly.
     /// </summary>
     [Fact]
-    public void ValidHeader_RoundTrips()
-    {
+    public void ValidHeader_RoundTrips() {
         ArtifactHeader header = ArtifactHeader.Read(ValidHeader());
         Assert.Equal(ArtifactFormat.VersionMajor, header.VersionMajor);
         Assert.Equal(64ul, header.ManifestOffset);
@@ -77,8 +73,7 @@ public class HeaderValidationTests
     /// <see cref="CartographFormatException"/> mentioning "magic".
     /// </summary>
     [Fact]
-    public void BadMagic_Throws()
-    {
+    public void BadMagic_Throws() {
         byte[] bytes = ValidHeader();
         bytes[0] ^= 0xFF;
         CartographFormatException ex = Assert.Throws<CartographFormatException>(() => ArtifactHeader.Read(bytes));
@@ -90,8 +85,7 @@ public class HeaderValidationTests
     /// <see cref="CartographFormatException"/> mentioning "endian".
     /// </summary>
     [Fact]
-    public void WrongEndianness_Throws()
-    {
+    public void WrongEndianness_Throws() {
         byte[] bytes = ValidHeader();
         // Byte-swap the endianness marker to simulate an opposite-endian producer.
         uint swapped = BinaryPrimitives.ReverseEndianness(ArtifactFormat.EndiannessMarker);
@@ -105,8 +99,7 @@ public class HeaderValidationTests
     /// <see cref="CartographFormatException"/> mentioning "version".
     /// </summary>
     [Fact]
-    public void WrongVersion_Throws()
-    {
+    public void WrongVersion_Throws() {
         byte[] bytes = ValidHeader();
         BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(4), 99);
         CartographFormatException ex = Assert.Throws<CartographFormatException>(() => ArtifactHeader.Read(bytes));
@@ -118,8 +111,7 @@ public class HeaderValidationTests
     /// <see cref="CartographFormatException"/> mentioning "checksum".
     /// </summary>
     [Fact]
-    public void CorruptHeaderChecksum_Throws()
-    {
+    public void CorruptHeaderChecksum_Throws() {
         byte[] bytes = ValidHeader();
         // Flip a reserved byte covered by the checksum but not magic/marker/version.
         bytes[44] ^= 0x5A;
@@ -132,8 +124,7 @@ public class HeaderValidationTests
     /// <see cref="CartographFormatException"/>.
     /// </summary>
     [Fact]
-    public void ShortBuffer_Throws()
-    {
+    public void ShortBuffer_Throws() {
         Assert.Throws<CartographFormatException>(() => ArtifactHeader.Read(new byte[10]));
     }
 }

@@ -42,12 +42,13 @@ namespace Cartograph;
 /// view offsets must be aligned to the granularity. Window tiling in <see cref="MappedFile"/> uses
 /// <see cref="AllocationGranularity"/> so that every window begins on a legal, aligned boundary.
 /// </remarks>
-public static partial class Platform
-{
+public static partial class Platform {
     /// <summary>The system memory page size in bytes.</summary>
+    /// <value>The system memory page size in bytes.</value>
     public static int PageSize => Environment.SystemPageSize;
 
     /// <summary>The OS allocation granularity in bytes (64 KiB on Windows; page size elsewhere).</summary>
+    /// <value>The OS allocation granularity in bytes (64 KiB on Windows; page size elsewhere).</value>
     public static long AllocationGranularity { get; } = QueryAllocationGranularity();
 
     /// <summary>Rounds <paramref name="value"/> up to a multiple of <paramref name="alignment"/>.</summary>
@@ -55,8 +56,7 @@ public static partial class Platform
     /// <param name="alignment">The alignment boundary; must be positive.</param>
     /// <returns>The smallest multiple of <paramref name="alignment"/> that is greater than or equal to <paramref name="value"/>.</returns>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="alignment" /> is negative or zero.</exception>
-    public static long AlignUp(long value, long alignment)
-    {
+    public static long AlignUp(long value, long alignment) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(alignment);
         return (value + (alignment - 1)) / alignment * alignment;
     }
@@ -66,8 +66,7 @@ public static partial class Platform
     /// <param name="alignment">The alignment boundary; must be positive.</param>
     /// <returns>The largest multiple of <paramref name="alignment"/> that is less than or equal to <paramref name="value"/>.</returns>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="alignment" /> is negative or zero.</exception>
-    public static long AlignDown(long value, long alignment)
-    {
+    public static long AlignDown(long value, long alignment) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(alignment);
         return value / alignment * alignment;
     }
@@ -77,10 +76,8 @@ public static partial class Platform
     /// falls back to <see cref="Environment.SystemPageSize"/> elsewhere.
     /// </summary>
     /// <returns>The allocation granularity in bytes.</returns>
-    private static long QueryAllocationGranularity()
-    {
-        if (OperatingSystem.IsWindows())
-        {
+    private static long QueryAllocationGranularity() {
+        if (OperatingSystem.IsWindows()) {
             GetSystemInfo(out SYSTEM_INFO info);
             return info.dwAllocationGranularity;
         }
@@ -95,8 +92,7 @@ public static partial class Platform
 
     /// <summary>Subset of the Windows <c>SYSTEM_INFO</c> structure used to retrieve the allocation granularity.</summary>
     [StructLayout(LayoutKind.Sequential)]
-    private struct SYSTEM_INFO
-    {
+    private struct SYSTEM_INFO {
         /// <summary>The processor architecture of the installed operating system.</summary>
         public ushort wProcessorArchitecture;
         /// <summary>Reserved; must be zero.</summary>

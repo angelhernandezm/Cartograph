@@ -40,8 +40,9 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Stores files back to back in a single file with an index appended at the end
 /// </summary>
-/// <remarks>
-/// <para>
+/// <param name="streaming"><see langword="true" /> to read only the index and seek per record; <see langword="false" /> to
+/// load the whole container into memory</param>
+/// <remarks><para>
 /// This is the honest hand-rolled equivalent of a Cartograph artifact: a magic number, an offset to
 /// the index, the payloads written contiguously, and the index itself at the tail. There is no
 /// alignment and no per-record checksum in the container, because a developer writing this by hand
@@ -53,14 +54,8 @@ namespace Cartograph.Baseline;
 /// write and allocates the entire artifact on the managed heap. <see cref="ContainerKind.NaiveStream" />
 /// reads only the index and then seeks per record into a reused buffer, which is the best that
 /// plain .NET can do and is the fairest comparison against a mapped read.
-/// </para>
-/// </remarks>
-/// <param name="streaming">
-/// <see langword="true" /> to read only the index and seek per record; <see langword="false" /> to
-/// load the whole container into memory
-/// </param>
-internal sealed class NaiveContainer(bool streaming) : BaselineContainer
-{
+/// </para></remarks>
+internal sealed class NaiveContainer(bool streaming) : BaselineContainer {
     /// <summary>
     /// Magic bytes that prefix the container
     /// </summary>
@@ -88,8 +83,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     public override string Extension => ".nbc";
 
     /// <inheritdoc />
-    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files)
-    {
+    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files) {
         ArgumentNullException.ThrowIfNull(files);
 
         RunMetrics.Scope scope = RunMetrics.Measure("pack");
@@ -97,8 +91,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
         List<BaselineEntry> entries = new(files.Count);
         long payloadBytes = 0;
 
-        using (FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
+        using (FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.None)) {
             Span<byte> preamble = stackalloc byte[PreambleSize];
             Magic.CopyTo(preamble);
             BinaryPrimitives.WriteInt64LittleEndian(preamble[4..], 0L);
@@ -106,14 +99,12 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
 
             byte[] buffer = new byte[CopyBufferSize];
 
-            foreach (SourceFile file in files)
-            {
+            foreach (SourceFile file in files) {
                 long offset = stream.Position;
                 XxHash3 hasher = new();
                 long written = 0;
 
-                try
-                {
+                try {
                     using FileStream input = new(
                         file.FullPath,
                         FileMode.Open,
@@ -122,15 +113,12 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
 
                     int read;
 
-                    while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
-                    {
+                    while ((read = input.Read(buffer, 0, buffer.Length)) > 0) {
                         stream.Write(buffer, 0, read);
                         hasher.Append(buffer.AsSpan(0, read));
                         written += read;
                     }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
+                } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                     ConsoleReport.Warn($"skipping '{file.RelativePath}': {ex.Message}");
 
                     // Rewind so the partially copied bytes do not become part of the container.
@@ -139,8 +127,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
                     continue;
                 }
 
-                entries.Add(new BaselineEntry
-                {
+                entries.Add(new BaselineEntry {
                     RelativePath = file.RelativePath,
                     Length = written,
                     LastWriteUtcTicks = file.LastWriteUtc.Ticks,
@@ -164,8 +151,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
 
         RunMetrics metrics = scope.Stop(payloadBytes);
 
-        return new BaselinePackResult
-        {
+        return new BaselinePackResult {
             ContainerPath = path,
             FileCount = entries.Count,
             PayloadBytes = payloadBytes,
@@ -175,8 +161,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     }
 
     /// <inheritdoc />
-    public override ContainerReader Open(string path, out RunMetrics metrics)
-    {
+    public override ContainerReader Open(string path, out RunMetrics metrics) {
         RunMetrics.Scope scope = RunMetrics.Measure("open");
 
         ContainerReader reader = _streaming
@@ -193,19 +178,16 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// <param name="path">Fully qualified path of the container to open</param>
     /// <returns>A reader that serves records as slices of the loaded array</returns>
     /// <exception cref="System.IO.InvalidDataException">The file does not begin with the container magic bytes.</exception>
-    private static ContainerReader OpenWhole(string path)
-    {
+    private static ContainerReader OpenWhole(string path) {
         byte[] all = File.ReadAllBytes(path);
 
-        if (all.Length < PreambleSize || !all.AsSpan(0, 4).SequenceEqual(Magic))
-        {
+        if (all.Length < PreambleSize || !all.AsSpan(0, 4).SequenceEqual(Magic)) {
             throw new InvalidDataException("Not a baseline container: bad magic.");
         }
 
         long indexOffset = BinaryPrimitives.ReadInt64LittleEndian(all.AsSpan(4));
 
-        if (indexOffset < PreambleSize || indexOffset > all.Length)
-        {
+        if (indexOffset < PreambleSize || indexOffset > all.Length) {
             throw new InvalidDataException("Baseline container has a corrupt index offset.");
         }
 
@@ -221,24 +203,20 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// <param name="path">Fully qualified path of the container to open</param>
     /// <returns>A reader that fetches records from the file on demand</returns>
     /// <exception cref="System.IO.InvalidDataException">The file does not begin with the container magic bytes.</exception>
-    private static ContainerReader OpenStreaming(string path)
-    {
+    private static ContainerReader OpenStreaming(string path) {
         FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        try
-        {
+        try {
             Span<byte> preamble = stackalloc byte[PreambleSize];
             stream.ReadExactly(preamble);
 
-            if (!preamble[..4].SequenceEqual(Magic))
-            {
+            if (!preamble[..4].SequenceEqual(Magic)) {
                 throw new InvalidDataException("Not a baseline container: bad magic.");
             }
 
             long indexOffset = BinaryPrimitives.ReadInt64LittleEndian(preamble[4..]);
 
-            if (indexOffset < PreambleSize || indexOffset > stream.Length)
-            {
+            if (indexOffset < PreambleSize || indexOffset > stream.Length) {
                 throw new InvalidDataException("Baseline container has a corrupt index offset.");
             }
 
@@ -246,9 +224,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
             List<BaselineEntry> entries = ReadIndex(stream);
 
             return new StreamingReader(stream, entries);
-        }
-        catch
-        {
+        } catch {
             stream.Dispose();
             throw;
         }
@@ -259,14 +235,12 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// </summary>
     /// <param name="stream">Container stream, positioned at the index offset</param>
     /// <param name="entries">Entries to write</param>
-    private static void WriteIndex(Stream stream, List<BaselineEntry> entries)
-    {
+    private static void WriteIndex(Stream stream, List<BaselineEntry> entries) {
         using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
         writer.Write(entries.Count);
 
-        foreach (BaselineEntry entry in entries)
-        {
+        foreach (BaselineEntry entry in entries) {
             writer.Write(entry.RelativePath);
             writer.Write(entry.Offset);
             writer.Write(entry.Length);
@@ -283,23 +257,19 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// <param name="stream">Stream positioned at the start of the index</param>
     /// <returns>The entries described by the index</returns>
     /// <exception cref="System.IO.InvalidDataException">The index declares a negative entry count.</exception>
-    private static List<BaselineEntry> ReadIndex(Stream stream)
-    {
+    private static List<BaselineEntry> ReadIndex(Stream stream) {
         using BinaryReader reader = new(stream, Encoding.UTF8, leaveOpen: true);
 
         int count = reader.ReadInt32();
 
-        if (count < 0)
-        {
+        if (count < 0) {
             throw new InvalidDataException("Baseline container declares a negative entry count.");
         }
 
         List<BaselineEntry> entries = new(count);
 
-        for (int i = 0; i < count; i++)
-        {
-            entries.Add(new BaselineEntry
-            {
+        for (int i = 0; i < count; i++) {
+            entries.Add(new BaselineEntry {
                 RelativePath = reader.ReadString(),
                 Offset = reader.ReadInt64(),
                 Length = reader.ReadInt64(),
@@ -316,8 +286,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// </summary>
     /// <param name="buffer">Complete container contents</param>
     /// <param name="entries">Entries describing the stored files</param>
-    private sealed class WholeFileReader(byte[] buffer, List<BaselineEntry> entries) : ContainerReader
-    {
+    private sealed class WholeFileReader(byte[] buffer, List<BaselineEntry> entries) : ContainerReader {
         /// <summary>
         /// Complete container contents, held on the managed heap for the lifetime of the reader
         /// </summary>
@@ -327,8 +296,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
         public override IReadOnlyList<BaselineEntry> Entries { get; } = entries;
 
         /// <inheritdoc />
-        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch)
-        {
+        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch) {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Entries.Count);
 
@@ -340,8 +308,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
         }
 
         /// <inheritdoc />
-        public override void Dispose()
-        {
+        public override void Dispose() {
             // Nothing to release: the buffer is ordinary managed memory.
         }
     }
@@ -351,8 +318,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
     /// </summary>
     /// <param name="stream">Open container stream</param>
     /// <param name="entries">Entries describing the stored files</param>
-    private sealed class StreamingReader(FileStream stream, List<BaselineEntry> entries) : ContainerReader
-    {
+    private sealed class StreamingReader(FileStream stream, List<BaselineEntry> entries) : ContainerReader {
         /// <summary>
         /// Open handle to the container
         /// </summary>
@@ -362,8 +328,7 @@ internal sealed class NaiveContainer(bool streaming) : BaselineContainer
         public override IReadOnlyList<BaselineEntry> Entries { get; } = entries;
 
         /// <inheritdoc />
-        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch)
-        {
+        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch) {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Entries.Count);
 

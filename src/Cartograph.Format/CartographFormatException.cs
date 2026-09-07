@@ -42,20 +42,17 @@ namespace Cartograph.Format;
 /// out-of-bounds read or a crash. The format therefore validates rigorously rather than trusting
 /// the file; the on-disk artifact is treated as a trust boundary.
 /// </remarks>
-public sealed class CartographFormatException : Exception
-{
+public sealed class CartographFormatException : Exception {
     /// <summary>Creates the exception with a descriptive message.</summary>
     /// <param name="message">A human-readable message describing why the artifact is invalid.</param>
     public CartographFormatException(string message)
-        : base(message)
-    {
+        : base(message) {
     }
 
     /// <summary>Creates the exception with a descriptive message and an inner cause.</summary>
     /// <param name="message">A human-readable message describing why the artifact is invalid.</param>
     /// <param name="innerException">The underlying exception that triggered this failure.</param>
     public CartographFormatException(string message, Exception innerException)
-        : base(message, innerException)
-    {
+        : base(message, innerException) {
     }
 }

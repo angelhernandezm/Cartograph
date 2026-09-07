@@ -37,9 +37,11 @@ namespace Cartograph;
 /// mapped windows; page faults bring bytes in on demand and are shared across processes via the OS
 /// page cache.
 /// </summary>
-public sealed class MappedChunkSource : IChunkSource
-{
+public sealed class MappedChunkSource : IChunkSource {
+    /// <summary>The mapped file whose windows back every returned chunk.</summary>
     private readonly MappedFile _file;
+
+    /// <summary>Whether disposing this source should also dispose <see cref="_file"/>.</summary>
     private readonly bool _ownsFile;
 
     /// <summary>
@@ -48,8 +50,7 @@ public sealed class MappedChunkSource : IChunkSource
     /// <param name="file">The mapped file to read from.</param>
     /// <param name="ownsFile">When <see langword="true"/>, disposing this source disposes <paramref name="file"/>.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="file" /> is <c>null</c>.</exception>
-    public MappedChunkSource(MappedFile file, bool ownsFile = false)
-    {
+    public MappedChunkSource(MappedFile file, bool ownsFile = false) {
         ArgumentNullException.ThrowIfNull(file);
         _file = file;
         _ownsFile = ownsFile;
@@ -69,8 +70,7 @@ public sealed class MappedChunkSource : IChunkSource
     /// <param name="offset">The byte offset within the file to start reading from.</param>
     /// <param name="length">The number of bytes to read.</param>
     /// <returns>A <see cref="ChunkLease"/> containing the requested bytes as a zero-copy sequence.</returns>
-    public ChunkLease Read(long offset, int length)
-    {
+    public ChunkLease Read(long offset, int length) {
         MappedSlice slice = _file.Slice(offset, length);
         return new ChunkLease(slice.Sequence, slice);
     }
@@ -85,17 +85,14 @@ public sealed class MappedChunkSource : IChunkSource
     /// <param name="cancellationToken">A token that may cancel the operation.</param>
     /// <returns>An already-completed <see cref="ValueTask{TResult}"/> wrapping a <see cref="ChunkLease"/>.</returns>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken" />.</exception>
-    public ValueTask<ChunkLease> ReadAsync(long offset, int length, CancellationToken cancellationToken = default)
-    {
+    public ValueTask<ChunkLease> ReadAsync(long offset, int length, CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
         return new ValueTask<ChunkLease>(Read(offset, length));
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        if (_ownsFile)
-        {
+    public void Dispose() {
+        if (_ownsFile) {
             _file.Dispose();
         }
     }

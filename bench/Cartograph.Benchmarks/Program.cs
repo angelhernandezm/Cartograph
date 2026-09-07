@@ -34,11 +34,12 @@ using BenchmarkDotNet.Running;
 
 namespace Cartograph.Benchmarks;
 
-/// <summary>Entry point. Run all benchmarks, or filter with <c>--filter</c>.</summary>
-public static class Program
-{
+/// <summary>
+/// Entry point. Run all benchmarks, or filter with <c>--filter</c>.
+/// </summary>
+public static class Program {
     /// <summary>
-    /// Application entry point; passes all command-line arguments to <see cref="BenchmarkSwitcher"/>.
+    /// Application entry point; passes all command-line arguments to <see cref="BenchmarkSwitcher" />.
     /// </summary>
     /// <param name="args">Command-line arguments forwarded to BenchmarkDotNet.</param>
     public static void Main(string[] args)

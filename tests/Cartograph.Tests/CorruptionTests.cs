@@ -38,15 +38,13 @@ namespace Cartograph.Tests;
 /// <summary>
 /// Tests that verify the artifact reader raises clean exceptions for corrupted files.
 /// </summary>
-public class CorruptionTests
-{
+public class CorruptionTests {
     /// <summary>
     /// Verifies that opening an artifact with a flipped magic byte throws a
     /// <see cref="CartographFormatException"/> cleanly.
     /// </summary>
     [Fact]
-    public void BadMagic_OnOpen_ThrowsCleanly()
-    {
+    public void BadMagic_OnOpen_ThrowsCleanly() {
         string path = TestArtifacts.WriteSingleSegment([TestArtifacts.Pattern(100, 1)]);
         using TempFile temp = new(path);
 
@@ -62,8 +60,7 @@ public class CorruptionTests
     /// throws a <see cref="CartographFormatException"/> cleanly.
     /// </summary>
     [Fact]
-    public void TruncatedFile_ThrowsCleanly()
-    {
+    public void TruncatedFile_ThrowsCleanly() {
         string path = TestArtifacts.WriteSingleSegment([TestArtifacts.Pattern(4096, 2)]);
         using TempFile temp = new(path);
 
@@ -80,8 +77,7 @@ public class CorruptionTests
     /// with a message mentioning checksum.
     /// </summary>
     [Fact]
-    public void CorruptRecordPayload_FailsChecksum()
-    {
+    public void CorruptRecordPayload_FailsChecksum() {
         // A single-record, single-segment artifact places the first payload at offset 128.
         byte[] record = TestArtifacts.Pattern(4096, 0xAB);
         string path = TestArtifacts.WriteSingleSegment([record]);
@@ -101,8 +97,7 @@ public class CorruptionTests
     /// verification is disabled via <see cref="ArtifactOpenOptions.VerifyChecksums"/>.
     /// </summary>
     [Fact]
-    public void ChecksumVerificationDisabled_DoesNotThrow()
-    {
+    public void ChecksumVerificationDisabled_DoesNotThrow() {
         byte[] record = TestArtifacts.Pattern(4096, 0xAB);
         string path = TestArtifacts.WriteSingleSegment([record]);
         using TempFile temp = new(path);

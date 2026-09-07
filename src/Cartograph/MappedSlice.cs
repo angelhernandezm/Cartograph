@@ -43,8 +43,10 @@ namespace Cartograph;
 /// memory stays mapped for as long as the slice is alive. <see cref="Sequence"/> must only be
 /// consumed before the slice is disposed; reading it afterwards is undefined behaviour.
 /// </remarks>
-public sealed class MappedSlice : IDisposable
-{
+public sealed class MappedSlice : IDisposable {
+    /// <summary>
+    /// The leases keeping the sliced windows mapped, exchanged for <c>null</c> when the slice is disposed.
+    /// </summary>
     private ViewLease[]? _leases;
 
     /// <summary>
@@ -52,26 +54,25 @@ public sealed class MappedSlice : IDisposable
     /// </summary>
     /// <param name="sequence">The zero-copy byte sequence spanning the sliced region.</param>
     /// <param name="leases">The view leases that keep the backing windows mapped for the slice lifetime.</param>
-    internal MappedSlice(ReadOnlySequence<byte> sequence, ViewLease[] leases)
-    {
+    internal MappedSlice(ReadOnlySequence<byte> sequence, ViewLease[] leases) {
         Sequence = sequence;
         _leases = leases;
     }
 
     /// <summary>The sliced bytes. Valid only until the slice is disposed.</summary>
-    public ReadOnlySequence<byte> Sequence { get; }
+    /// <value>The sliced bytes. Valid only until the slice is disposed.</value>
+    public ReadOnlySequence<byte> Sequence {
+        get;
+    }
 
     /// <summary>Releases the leases held by this slice. Safe to call more than once.</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         ViewLease[]? leases = Interlocked.Exchange(ref _leases, null);
-        if (leases is null)
-        {
+        if (leases is null) {
             return;
         }
 
-        foreach (ViewLease lease in leases)
-        {
+        foreach (ViewLease lease in leases) {
             lease.Dispose();
         }
     }

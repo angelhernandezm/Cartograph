@@ -46,16 +46,14 @@ namespace Cartograph.Format;
 /// live, giving an atomic publish point: a reader that observes the new manifest sees a fully
 /// written, self-consistent set of segments.
 /// </remarks>
-public sealed class SegmentedArtifactWriter
-{
+public sealed class SegmentedArtifactWriter {
     /// <summary>The ordered list of segment builders added to this writer.</summary>
     private readonly List<SegmentBuilder> _segments = [];
 
     /// <summary>Adds a new segment and returns a builder to append records to it.</summary>
     /// <param name="segmentId">An optional stable id; defaults to the segment's ordinal.</param>
     /// <returns>A <see cref="SegmentBuilder"/> that accepts records for the new segment.</returns>
-    public SegmentBuilder AddSegment(uint? segmentId = null)
-    {
+    public SegmentBuilder AddSegment(uint? segmentId = null) {
         SegmentBuilder builder = new(segmentId ?? (uint)_segments.Count);
         _segments.Add(builder);
         return builder;
@@ -65,8 +63,7 @@ public sealed class SegmentedArtifactWriter
     /// <param name="path">The file system path to write the artifact to.</param>
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="System.InvalidOperationException">Layout error: attempted to pad backwards.</exception>
-    public void Save(string path)
-    {
+    public void Save(string path) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         using FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.None);
         Save(stream);
@@ -76,15 +73,13 @@ public sealed class SegmentedArtifactWriter
     /// <param name="stream">The destination stream; must support writing.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
     /// <exception cref="System.InvalidOperationException">Layout error: attempted to pad backwards.</exception>
-    public void Save(Stream stream)
-    {
+    public void Save(Stream stream) {
         ArgumentNullException.ThrowIfNull(stream);
 
         SegmentGeometry[] geometry = ComputeLayout(out long manifestOffset, out int manifestLength);
         ulong contentLength = (ulong)(manifestOffset + manifestLength);
 
-        ArtifactHeader header = new()
-        {
+        ArtifactHeader header = new() {
             VersionMajor = ArtifactFormat.VersionMajor,
             VersionMinor = ArtifactFormat.VersionMinor,
             PointerSize = (byte)IntPtr.Size,
@@ -103,8 +98,7 @@ public sealed class SegmentedArtifactWriter
         position += headerBytes.Length;
 
         SegmentDescriptor[] descriptors = new SegmentDescriptor[_segments.Count];
-        for (int s = 0; s < _segments.Count; s++)
-        {
+        for (int s = 0; s < _segments.Count; s++) {
             SegmentBuilder segment = _segments[s];
             SegmentGeometry geo = geometry[s];
 
@@ -113,19 +107,15 @@ public sealed class SegmentedArtifactWriter
             XxHash3 segmentHasher = new();
             ulong[] checksums = new ulong[segment.Records.Count];
 
-            if (geo.PayloadFirst)
-            {
+            if (geo.PayloadFirst) {
                 // Payload precedes the directory, so each record's checksum falls out of the same
                 // pass that writes it. Without this a streamed record would have to be read twice:
                 // once to fill in its directory entry and again to emit its bytes.
                 WritePayloads(stream, ref position, segment, geo, padScratch, segmentHasher, checksums);
                 PadTo(stream, ref position, geo.DirectoryOffset, padScratch, segmentHasher);
                 WriteDirectory(stream, ref position, segment, geo, segmentHasher, checksums);
-            }
-            else
-            {
-                for (int r = 0; r < segment.Records.Count; r++)
-                {
+            } else {
+                for (int r = 0; r < segment.Records.Count; r++) {
                     checksums[r] = segment.Records[r].ComputeChecksum();
                 }
 
@@ -138,8 +128,7 @@ public sealed class SegmentedArtifactWriter
             long segmentEnd = geo.DataOffset + geo.DataLength;
             PadTo(stream, ref position, segmentEnd, padScratch, segmentHasher);
 
-            descriptors[s] = new SegmentDescriptor
-            {
+            descriptors[s] = new SegmentDescriptor {
                 SegmentId = segment.Id,
                 Flags = ArtifactFormat.SegmentFlagLive,
                 DataOffset = (ulong)geo.DataOffset,
@@ -169,21 +158,18 @@ public sealed class SegmentedArtifactWriter
     /// <param name="manifestOffset">Receives the file-relative byte offset of the manifest.</param>
     /// <param name="manifestLength">Receives the byte length of the serialized manifest.</param>
     /// <returns>An array of <see cref="SegmentGeometry"/> values, one per added segment, in order.</returns>
-    private SegmentGeometry[] ComputeLayout(out long manifestOffset, out int manifestLength)
-    {
+    private SegmentGeometry[] ComputeLayout(out long manifestOffset, out int manifestLength) {
         SegmentGeometry[] geometry = new SegmentGeometry[_segments.Count];
         long offset = ArtifactFormat.HeaderSize;
 
-        for (int s = 0; s < _segments.Count; s++)
-        {
+        for (int s = 0; s < _segments.Count; s++) {
             SegmentBuilder segment = _segments[s];
             long dataOffset = Platform.AlignUp(offset, ArtifactFormat.Alignment);
             long directorySize = (long)segment.Records.Count * ArtifactFormat.RecordEntrySize;
 
             long[] relOffsets = new long[segment.Records.Count];
             long relRunning = 0;
-            for (int r = 0; r < segment.Records.Count; r++)
-            {
+            for (int r = 0; r < segment.Records.Count; r++) {
                 relOffsets[r] = relRunning;
                 relRunning = Platform.AlignUp(relRunning + segment.Records[r].Length, ArtifactFormat.Alignment);
             }
@@ -195,14 +181,11 @@ public sealed class SegmentedArtifactWriter
             long directoryOffset;
             long payloadOffset;
             long dataLength;
-            if (payloadFirst)
-            {
+            if (payloadFirst) {
                 payloadOffset = dataOffset;
                 directoryOffset = Platform.AlignUp(payloadOffset + relRunning, ArtifactFormat.Alignment);
                 dataLength = directoryOffset + directorySize - dataOffset;
-            }
-            else
-            {
+            } else {
                 directoryOffset = dataOffset;
                 payloadOffset = Platform.AlignUp(directoryOffset + directorySize, ArtifactFormat.Alignment);
                 dataLength = payloadOffset - dataOffset + relRunning;
@@ -238,11 +221,9 @@ public sealed class SegmentedArtifactWriter
         SegmentBuilder segment,
         in SegmentGeometry geo,
         XxHash3 hasher,
-        ulong[] checksums)
-    {
+        ulong[] checksums) {
         Span<byte> entry = stackalloc byte[ArtifactFormat.RecordEntrySize];
-        for (int r = 0; r < segment.Records.Count; r++)
-        {
+        for (int r = 0; r < segment.Records.Count; r++) {
             BinaryPrimitives.WriteUInt64LittleEndian(entry[0..], (ulong)geo.RecordRelOffsets[r]);
             BinaryPrimitives.WriteUInt64LittleEndian(entry[8..], (ulong)segment.Records[r].Length);
             BinaryPrimitives.WriteUInt64LittleEndian(entry[16..], checksums[r]);
@@ -269,10 +250,8 @@ public sealed class SegmentedArtifactWriter
         in SegmentGeometry geo,
         byte[] padScratch,
         XxHash3 hasher,
-        ulong[] checksums)
-    {
-        for (int r = 0; r < segment.Records.Count; r++)
-        {
+        ulong[] checksums) {
+        for (int r = 0; r < segment.Records.Count; r++) {
             long recordStart = geo.PayloadOffset + geo.RecordRelOffsets[r];
             PadTo(stream, ref position, recordStart, padScratch, hasher);
 
@@ -290,8 +269,7 @@ public sealed class SegmentedArtifactWriter
     /// <param name="position">The current write position; updated in place.</param>
     /// <param name="data">The bytes to write and hash.</param>
     /// <param name="hasher">The XxHash3 hasher accumulating the segment checksum.</param>
-    private static void WriteAndHash(Stream stream, ref long position, ReadOnlySpan<byte> data, XxHash3 hasher)
-    {
+    private static void WriteAndHash(Stream stream, ref long position, ReadOnlySpan<byte> data, XxHash3 hasher) {
         stream.Write(data);
         hasher.Append(data);
         position += data.Length;
@@ -307,16 +285,13 @@ public sealed class SegmentedArtifactWriter
     /// <param name="scratch">A scratch buffer used to stage zero-fill chunks.</param>
     /// <param name="hasher">The optional XxHash3 hasher to feed padding bytes into; may be <see langword="null"/>.</param>
     /// <exception cref="System.InvalidOperationException">Layout error: attempted to pad backwards.</exception>
-    private static void PadTo(Stream stream, ref long position, long target, byte[] scratch, XxHash3? hasher)
-    {
-        if (target < position)
-        {
+    private static void PadTo(Stream stream, ref long position, long target, byte[] scratch, XxHash3? hasher) {
+        if (target < position) {
             throw new InvalidOperationException("Layout error: attempted to pad backwards.");
         }
 
         long remaining = target - position;
-        while (remaining > 0)
-        {
+        while (remaining > 0) {
             int chunk = (int)Math.Min(remaining, scratch.Length);
             Array.Clear(scratch, 0, chunk);
             stream.Write(scratch, 0, chunk);
@@ -329,30 +304,43 @@ public sealed class SegmentedArtifactWriter
     /// <summary>
     /// Holds the computed byte-level layout for a single segment within the artifact being built.
     /// </summary>
+    /// <param name="dataOffset">The file-relative byte offset at which the segment data region begins.</param>
+    /// <param name="directoryOffset">The file-relative byte offset of the record directory within this segment.</param>
+    /// <param name="payloadOffset">The file-relative byte offset of the record payload region within this segment.</param>
+    /// <param name="dataLength">The total byte length of the segment data region.</param>
+    /// <param name="recordRelOffsets">The payload-relative byte offset of each record, indexed by record position.</param>
+    /// <param name="payloadFirst">
+    /// <c>true</c> when the payload region precedes the record directory; otherwise <c>false</c>.
+    /// </param>
     private readonly struct SegmentGeometry(
         long dataOffset,
         long directoryOffset,
         long payloadOffset,
         long dataLength,
         long[] recordRelOffsets,
-        bool payloadFirst)
-    {
+        bool payloadFirst) {
         /// <summary>The file-relative byte offset at which the segment data region begins.</summary>
+        /// <value>The file-relative byte offset at which the segment data region begins.</value>
         public long DataOffset { get; } = dataOffset;
 
         /// <summary>The file-relative byte offset of the record directory within this segment.</summary>
+        /// <value>The file-relative byte offset of the record directory within this segment.</value>
         public long DirectoryOffset { get; } = directoryOffset;
 
         /// <summary>The file-relative byte offset of the record payload region within this segment.</summary>
+        /// <value>The file-relative byte offset of the record payload region within this segment.</value>
         public long PayloadOffset { get; } = payloadOffset;
 
         /// <summary>The total byte length of this segment's data region.</summary>
+        /// <value>The total byte length of this segment's data region.</value>
         public long DataLength { get; } = dataLength;
 
         /// <summary>The payload-relative byte offset of each record, indexed by record position.</summary>
+        /// <value>The payload-relative byte offset of each record, indexed by record position.</value>
         public long[] RecordRelOffsets { get; } = recordRelOffsets;
 
         /// <summary>Whether the payload region precedes the record directory within this segment.</summary>
+        /// <value>Whether the payload region precedes the record directory within this segment.</value>
         public bool PayloadFirst { get; } = payloadFirst;
     }
 }
@@ -364,8 +352,7 @@ public sealed class SegmentedArtifactWriter
 /// payload-first so the writer can emit and checksum it in a single pass, which keeps packing
 /// memory-bounded regardless of how much file data the segment covers.
 /// </remarks>
-public sealed class SegmentBuilder
-{
+public sealed class SegmentBuilder {
     /// <summary>The payload sources accumulated for this segment, in record order.</summary>
     private readonly List<RecordSource> _records = [];
 
@@ -376,25 +363,35 @@ public sealed class SegmentBuilder
     internal SegmentBuilder(uint id) => Id = id;
 
     /// <summary>The stable numeric identifier assigned to this segment.</summary>
-    internal uint Id { get; }
+    /// <value>The stable numeric identifier assigned to this segment.</value>
+    internal uint Id {
+        get;
+    }
 
     /// <summary>The record payload sources accumulated so far, in record order.</summary>
+    /// <value>The record payload sources accumulated so far, in record order.</value>
     internal IReadOnlyList<RecordSource> Records => _records;
 
     /// <summary>
     /// Whether this segment contains a record that cannot be checksummed without reading its backing
     /// store, and therefore must be laid out payload-first.
     /// </summary>
-    internal bool RequiresPayloadFirstLayout { get; private set; }
+    /// <value>
+    /// Whether this segment contains a record that cannot be checksummed without reading its backing store,
+    /// and therefore must be laid out payload-first.
+    /// </value>
+    internal bool RequiresPayloadFirstLayout {
+        get; private set;
+    }
 
     /// <summary>The number of records added so far.</summary>
+    /// <value>The number of records added so far.</value>
     public int RecordCount => _records.Count;
 
     /// <summary>Appends a record, copying <paramref name="data"/> into the writer.</summary>
     /// <param name="data">The raw bytes of the record to append.</param>
     /// <returns>This <see cref="SegmentBuilder"/> to allow method chaining.</returns>
-    public SegmentBuilder AddRecord(ReadOnlySpan<byte> data)
-    {
+    public SegmentBuilder AddRecord(ReadOnlySpan<byte> data) {
         _records.Add(new BufferedRecordSource(data.ToArray()));
         return this;
     }
@@ -408,12 +405,10 @@ public sealed class SegmentBuilder
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="System.IO.FileNotFoundException">The file does not exist.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException">The file is larger than <see cref="ArtifactFormat.MaxRecordLength"/> bytes.</exception>
-    public SegmentBuilder AddFileRecord(string path)
-    {
+    public SegmentBuilder AddFileRecord(string path) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         FileInfo info = new(path);
-        if (!info.Exists)
-        {
+        if (!info.Exists) {
             throw new FileNotFoundException($"Cannot append a record from missing file '{path}'.", path);
         }
 
@@ -433,16 +428,14 @@ public sealed class SegmentBuilder
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset"/> or <paramref name="length"/> is negative.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="length"/> exceeds <see cref="ArtifactFormat.MaxRecordLength"/>.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException">The requested range extends past the end of the file.</exception>
-    public SegmentBuilder AddFileRecord(string path, long offset, long length)
-    {
+    public SegmentBuilder AddFileRecord(string path, long offset, long length) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
 
         // Enforced here, rather than only when the artifact is opened, so an oversized record fails
         // with an actionable message at the point it is added. Split large inputs across records.
-        if (length > ArtifactFormat.MaxRecordLength)
-        {
+        if (length > ArtifactFormat.MaxRecordLength) {
             throw new ArgumentOutOfRangeException(
                 nameof(length),
                 length,
@@ -451,13 +444,11 @@ public sealed class SegmentBuilder
         }
 
         FileInfo info = new(path);
-        if (!info.Exists)
-        {
+        if (!info.Exists) {
             throw new FileNotFoundException($"Cannot append a record from missing file '{path}'.", path);
         }
 
-        if (offset + length > info.Length)
-        {
+        if (offset + length > info.Length) {
             throw new ArgumentOutOfRangeException(
                 nameof(length),
                 length,
