@@ -43,12 +43,10 @@ namespace Cartograph;
 /// lengths are <see cref="int"/>, any file larger than ~2 GiB REQUIRES multiple views; chaining
 /// these nodes is how the substrate presents such a file as one logical, seekable byte sequence.
 /// </remarks>
-public sealed class MappedSequenceSegment : ReadOnlySequenceSegment<byte>
-{
+public sealed class MappedSequenceSegment : ReadOnlySequenceSegment<byte> {
     /// <summary>Creates the first node of a sequence over <paramref name="memory"/>.</summary>
     /// <param name="memory">The mapped memory region this node represents.</param>
-    public MappedSequenceSegment(ReadOnlyMemory<byte> memory)
-    {
+    public MappedSequenceSegment(ReadOnlyMemory<byte> memory) {
         Memory = memory;
         RunningIndex = 0;
     }
@@ -58,8 +56,7 @@ public sealed class MappedSequenceSegment : ReadOnlySequenceSegment<byte>
     /// </summary>
     /// <param name="memory">The mapped memory region this node represents.</param>
     /// <param name="runningIndex">The cumulative byte offset of this node within the sequence.</param>
-    private MappedSequenceSegment(ReadOnlyMemory<byte> memory, long runningIndex)
-    {
+    private MappedSequenceSegment(ReadOnlyMemory<byte> memory, long runningIndex) {
         Memory = memory;
         RunningIndex = runningIndex;
     }
@@ -67,8 +64,7 @@ public sealed class MappedSequenceSegment : ReadOnlySequenceSegment<byte>
     /// <summary>Appends <paramref name="memory"/> as the next node and returns it.</summary>
     /// <param name="memory">The mapped memory region for the new node.</param>
     /// <returns>The newly created <see cref="MappedSequenceSegment"/> appended after this node.</returns>
-    public MappedSequenceSegment Append(ReadOnlyMemory<byte> memory)
-    {
+    public MappedSequenceSegment Append(ReadOnlyMemory<byte> memory) {
         MappedSequenceSegment next = new(memory, RunningIndex + Memory.Length);
         Next = next;
         return next;

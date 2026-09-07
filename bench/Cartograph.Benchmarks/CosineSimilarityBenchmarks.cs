@@ -38,42 +38,50 @@ using Cartograph.Format;
 namespace Cartograph.Benchmarks;
 
 /// <summary>
-/// A realistic vector-search inner loop: <see cref="TensorPrimitives.CosineSimilarity(ReadOnlySpan{float}, ReadOnlySpan{float})"/>
+/// A realistic vector-search inner loop: <see cref="TensorPrimitives.CosineSimilarity(ReadOnlySpan{float}, ReadOnlySpan{float})" />
 /// over <c>MemoryMarshal.Cast&lt;byte, float&gt;</c> of mapped pages.
 /// </summary>
-/// <remarks>
-/// This is NOT an ANN index (Cartograph deliberately does not build one). It measures the cost of a
-/// brute-force scan directly over the artifact: mapped records are cast to <see cref="float"/> spans
+/// <remarks>This is NOT an ANN index (Cartograph deliberately does not build one). It measures the cost of a
+/// brute-force scan directly over the artifact: mapped records are cast to <see cref="float" /> spans
 /// in place with no copy into the managed heap, so the scan runs with zero steady-state managed
 /// allocation proportional to the corpus. The managed baseline holds every vector as a
-/// <see cref="float"/> array in memory, showing the working-set difference.
-/// </remarks>
+/// <see cref="float" /> array in memory, showing the working-set difference.</remarks>
 [MemoryDiagnoser]
-public class CosineSimilarityBenchmarks
-{
-    /// <summary>Number of float dimensions per vector record.</summary>
+public class CosineSimilarityBenchmarks {
+    /// <summary>
+    /// Number of float dimensions per vector record.
+    /// </summary>
     private const int Dimensions = 768;
 
-    /// <summary>Path to the temporary artifact written by the setup step.</summary>
+    /// <summary>
+    /// Path to the temporary artifact written by the setup step.
+    /// </summary>
     private string _path = string.Empty;
 
-    /// <summary>The query vector every record is scored against.</summary>
+    /// <summary>
+    /// The query vector every record is scored against.
+    /// </summary>
     private float[] _query = [];
 
-    /// <summary>The fully materialized managed baseline, one array per record.</summary>
+    /// <summary>
+    /// The fully materialized managed baseline, one array per record.
+    /// </summary>
     private float[][] _managed = [];
 
-    /// <summary>Gets or sets the number of vector records in the artifact.</summary>
+    /// <summary>
+    /// Gets or sets the number of vector records in the artifact.
+    /// </summary>
     /// <value>The number of vector records in the artifact.</value>
     [Params(50_000)]
-    public int RecordCount { get; set; }
+    public int RecordCount {
+        get; set;
+    }
 
     /// <summary>
     /// Writes the artifact to disk and materializes the managed baseline array.
     /// </summary>
     [GlobalSetup]
-    public void Setup()
-    {
+    public void Setup() {
         _path = BenchmarkData.WriteVectorArtifact(RecordCount, Dimensions);
         _query = BenchmarkData.QueryVector(Dimensions);
 
@@ -81,31 +89,29 @@ public class CosineSimilarityBenchmarks
         _managed = new float[RecordCount][];
         using Artifact artifact = Artifact.Open(_path, new ArtifactOpenOptions { VerifyChecksums = false });
         ArtifactSegment segment = artifact.Segments[0];
-        for (int i = 0; i < RecordCount; i++)
-        {
+        for (int i = 0; i < RecordCount; i++) {
             using RecordLease lease = segment.ReadRecord(i);
             _managed[i] = MemoryMarshal.Cast<byte, float>(lease.FirstSpan).ToArray();
         }
     }
 
-    /// <summary>Deletes the temporary artifact file created by <see cref="Setup"/>.</summary>
+    /// <summary>
+    /// Deletes the temporary artifact file created by <see cref="Setup" />.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup() => BenchmarkData.TryDelete(_path);
 
     /// <summary>
-    /// Baseline benchmark: iterates all vectors held as managed <see cref="float"/> arrays
+    /// Baseline benchmark: iterates all vectors held as managed <see cref="float" /> arrays
     /// and returns the highest cosine-similarity score against the query vector.
     /// </summary>
     /// <returns>The best cosine-similarity score found in the corpus.</returns>
     [Benchmark(Baseline = true)]
-    public float Managed_HeapVectors()
-    {
+    public float Managed_HeapVectors() {
         float best = float.MinValue;
-        foreach (float[] vector in _managed)
-        {
+        foreach (float[] vector in _managed) {
             float score = TensorPrimitives.CosineSimilarity(vector, _query);
-            if (score > best)
-            {
+            if (score > best) {
                 best = score;
             }
         }
@@ -115,22 +121,19 @@ public class CosineSimilarityBenchmarks
 
     /// <summary>
     /// Benchmark: opens the artifact with mapped I/O, casts each record's bytes to
-    /// <see cref="float"/> in-place, and returns the best cosine-similarity score.
+    /// <see cref="float" /> in-place, and returns the best cosine-similarity score.
     /// </summary>
     /// <returns>The best cosine-similarity score found in the corpus.</returns>
     [Benchmark]
-    public float Mapped_CastInPlace()
-    {
+    public float Mapped_CastInPlace() {
         using Artifact artifact = Artifact.Open(_path, new ArtifactOpenOptions { ChunkSource = ChunkSourceKind.Mapped, VerifyChecksums = false });
         ArtifactSegment segment = artifact.Segments[0];
         float best = float.MinValue;
-        for (int i = 0; i < RecordCount; i++)
-        {
+        for (int i = 0; i < RecordCount; i++) {
             using RecordLease lease = segment.ReadRecord(i);
             ReadOnlySpan<float> vector = MemoryMarshal.Cast<byte, float>(lease.FirstSpan);
             float score = TensorPrimitives.CosineSimilarity(vector, _query);
-            if (score > best)
-            {
+            if (score > best) {
                 best = score;
             }
         }

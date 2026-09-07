@@ -49,8 +49,7 @@ namespace Cartograph.Format;
 /// legal against mapped pages.
 /// </para>
 /// </remarks>
-public static class ArtifactFormat
-{
+public static class ArtifactFormat {
     /// <summary>The 4-byte file magic: ASCII "CTGH".</summary>
     /// <value>The 4-byte file magic: ASCII "CTGH".</value>
     public static ReadOnlySpan<byte> Magic => "CTGH"u8;

@@ -46,8 +46,7 @@ namespace Cartograph.Baseline;
 /// extension. That variety is what makes the round-trip meaningful: it exercises record alignment,
 /// multi-page records and the zero-length edge case rather than just the happy path.
 /// </remarks>
-internal sealed class DemoTree : IDisposable
-{
+internal sealed class DemoTree : IDisposable {
     /// <summary>
     /// Deterministic seed so that repeated demo runs produce identical trees
     /// </summary>
@@ -88,8 +87,7 @@ internal sealed class DemoTree : IDisposable
     /// </summary>
     /// <param name="root">Fully qualified path of the generated tree</param>
     /// <param name="cleanup">Whether the tree is deleted on disposal</param>
-    private DemoTree(string root, bool cleanup)
-    {
+    private DemoTree(string root, bool cleanup) {
         Root = root;
         _cleanup = cleanup;
     }
@@ -98,19 +96,25 @@ internal sealed class DemoTree : IDisposable
     /// Gets the fully qualified path of the generated tree
     /// </summary>
     /// <value>A directory beneath the system temporary folder.</value>
-    public string Root { get; }
+    public string Root {
+        get;
+    }
 
     /// <summary>
     /// Gets the number of files that were generated
     /// </summary>
     /// <value>Matches the requested file count.</value>
-    public int FileCount { get; private init; }
+    public int FileCount {
+        get; private init;
+    }
 
     /// <summary>
     /// Gets the total number of bytes that were written
     /// </summary>
     /// <value>The sum of every generated file's length.</value>
-    public long TotalBytes { get; private init; }
+    public long TotalBytes {
+        get; private init;
+    }
 
     /// <summary>
     /// Generates a new demo tree beneath the system temporary folder
@@ -119,8 +123,7 @@ internal sealed class DemoTree : IDisposable
     /// <param name="cleanup">Whether the tree is deleted when the returned instance is disposed</param>
     /// <returns>A handle to the generated tree</returns>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="fileCount" /> is less than one.</exception>
-    public static DemoTree Create(int fileCount, bool cleanup)
-    {
+    public static DemoTree Create(int fileCount, bool cleanup) {
         ArgumentOutOfRangeException.ThrowIfLessThan(fileCount, 1);
 
         string root = Path.Combine(
@@ -129,16 +132,14 @@ internal sealed class DemoTree : IDisposable
 
         Directory.CreateDirectory(root);
 
-        foreach (string folder in Folders)
-        {
+        foreach (string folder in Folders) {
             Directory.CreateDirectory(Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar)));
         }
 
         Random random = new(Seed);
         long total = 0;
 
-        for (int i = 0; i < fileCount; i++)
-        {
+        for (int i = 0; i < fileCount; i++) {
             string folder = Folders[i % Folders.Length];
             string extension = Extensions[i % Extensions.Length];
             string name = string.Format(CultureInfo.InvariantCulture, "item-{0:D4}{1}", i, extension);
@@ -154,8 +155,7 @@ internal sealed class DemoTree : IDisposable
         total += WriteExtra(root, Path.Combine("config", "empty.txt"), []);
         total += WriteExtra(root, Path.Combine("data", "raw", "large.bin"), GenerateBinary(new Random(Seed + 1), 1_500_000));
 
-        return new DemoTree(root, cleanup)
-        {
+        return new DemoTree(root, cleanup) {
             FileCount = fileCount + 3,
             TotalBytes = total,
         };
@@ -164,29 +164,22 @@ internal sealed class DemoTree : IDisposable
     /// <summary>
     /// Deletes the generated tree unless it was created with cleanup disabled
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 
         _disposed = true;
 
-        if (!_cleanup)
-        {
+        if (!_cleanup) {
             return;
         }
 
-        try
-        {
-            if (Directory.Exists(Root))
-            {
+        try {
+            if (Directory.Exists(Root)) {
                 Directory.Delete(Root, recursive: true);
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             ConsoleReport.Warn($"could not delete the demo tree at '{Root}': {ex.Message}");
         }
     }
@@ -198,13 +191,11 @@ internal sealed class DemoTree : IDisposable
     /// <param name="relativePath">Path of the file relative to <paramref name="root" /></param>
     /// <param name="content">Bytes to write</param>
     /// <returns>The number of bytes written</returns>
-    private static long WriteExtra(string root, string relativePath, byte[] content)
-    {
+    private static long WriteExtra(string root, string relativePath, byte[] content) {
         string path = Path.Combine(root, relativePath);
         string? directory = Path.GetDirectoryName(path);
 
-        if (!string.IsNullOrEmpty(directory))
-        {
+        if (!string.IsNullOrEmpty(directory)) {
             Directory.CreateDirectory(directory);
         }
 
@@ -219,8 +210,7 @@ internal sealed class DemoTree : IDisposable
     /// <param name="extension">Extension of the file being generated</param>
     /// <param name="index">Ordinal of the file, embedded in the generated content</param>
     /// <returns>The generated file contents</returns>
-    private static byte[] GenerateContent(Random random, string extension, int index) => extension switch
-    {
+    private static byte[] GenerateContent(Random random, string extension, int index) => extension switch {
         ".bin" => GenerateBinary(random, random.Next(512, 96 * 1024)),
         ".json" => Encoding.UTF8.GetBytes(GenerateJson(random, index)),
         ".csv" => Encoding.UTF8.GetBytes(GenerateCsv(random, index)),
@@ -235,8 +225,7 @@ internal sealed class DemoTree : IDisposable
     /// <param name="random">Source of randomness, seeded for reproducibility</param>
     /// <param name="length">Number of bytes to produce</param>
     /// <returns>The generated buffer</returns>
-    private static byte[] GenerateBinary(Random random, int length)
-    {
+    private static byte[] GenerateBinary(Random random, int length) {
         byte[] buffer = new byte[length];
         random.NextBytes(buffer);
         return buffer;
@@ -248,18 +237,15 @@ internal sealed class DemoTree : IDisposable
     /// <param name="random">Source of randomness, seeded for reproducibility</param>
     /// <param name="index">Ordinal of the file, used as the document identifier</param>
     /// <returns>The generated JSON text</returns>
-    private static string GenerateJson(Random random, int index)
-    {
+    private static string GenerateJson(Random random, int index) {
         StringBuilder builder = new();
 
         builder.Append(CultureInfo.InvariantCulture, $"{{\n  \"id\": {index},\n  \"vector\": [");
 
         int dimensions = random.Next(8, 64);
 
-        for (int i = 0; i < dimensions; i++)
-        {
-            if (i > 0)
-            {
+        for (int i = 0; i < dimensions; i++) {
+            if (i > 0) {
                 builder.Append(", ");
             }
 
@@ -276,15 +262,13 @@ internal sealed class DemoTree : IDisposable
     /// <param name="random">Source of randomness, seeded for reproducibility</param>
     /// <param name="index">Ordinal of the file, embedded in each row</param>
     /// <returns>The generated CSV text</returns>
-    private static string GenerateCsv(Random random, int index)
-    {
+    private static string GenerateCsv(Random random, int index) {
         StringBuilder builder = new();
         builder.Append("id,name,score,timestamp\n");
 
         int rows = random.Next(4, 200);
 
-        for (int i = 0; i < rows; i++)
-        {
+        for (int i = 0; i < rows; i++) {
             builder.Append(CultureInfo.InvariantCulture, $"{index}-{i},row-{i},{random.NextDouble():0.#####},2026-08-30T12:00:00Z\n");
         }
 
@@ -339,15 +323,13 @@ internal sealed class DemoTree : IDisposable
     /// <param name="random">Source of randomness, seeded for reproducibility</param>
     /// <param name="index">Ordinal of the file, embedded in the first line</param>
     /// <returns>The generated text</returns>
-    private static string GenerateText(Random random, int index)
-    {
+    private static string GenerateText(Random random, int index) {
         StringBuilder builder = new();
         builder.Append(CultureInfo.InvariantCulture, $"Cartograph harness sample {index}\n\n");
 
         int lines = random.Next(3, 400);
 
-        for (int i = 0; i < lines; i++)
-        {
+        for (int i = 0; i < lines; i++) {
             builder.Append(CultureInfo.InvariantCulture,
                 $"line {i:D4}: the artifact is immutable once written, so readers never coordinate.\n");
         }

@@ -50,8 +50,7 @@ namespace Cartograph;
 /// exercise the multi-view stitching path without creating a huge file.
 /// </para>
 /// </remarks>
-public sealed class MappedFile : IDisposable
-{
+public sealed class MappedFile : IDisposable {
     /// <summary>The default window size (256 MiB), a multiple of the Windows allocation granularity.</summary>
     public const long DefaultWindowSize = 256L * 1024 * 1024;
 
@@ -73,16 +72,14 @@ public sealed class MappedFile : IDisposable
     /// <param name="mappedFile">The underlying memory-mapped file handle.</param>
     /// <param name="length">The total length of the file in bytes.</param>
     /// <param name="windowSize">The aligned window size used to tile the file.</param>
-    private MappedFile(MemoryMappedFile mappedFile, long length, long windowSize)
-    {
+    private MappedFile(MemoryMappedFile mappedFile, long length, long windowSize) {
         _mappedFile = mappedFile;
         Length = length;
         _windowSize = windowSize;
 
         int windowCount = length == 0 ? 0 : checked((int)((length + windowSize - 1) / windowSize));
         _windows = new MappedSegment[windowCount];
-        for (int i = 0; i < windowCount; i++)
-        {
+        for (int i = 0; i < windowCount; i++) {
             long offset = (long)i * windowSize;
             int size = (int)Math.Min(windowSize, length - offset);
             _windows[i] = new MappedSegment(mappedFile, offset, size, MemoryMappedFileAccess.Read);
@@ -91,7 +88,9 @@ public sealed class MappedFile : IDisposable
 
     /// <summary>The total length of the mapped file in bytes.</summary>
     /// <value>The total length of the mapped file in bytes.</value>
-    public long Length { get; }
+    public long Length {
+        get;
+    }
 
     /// <summary>The window size used to tile the file.</summary>
     /// <value>The window size used to tile the file.</value>
@@ -111,14 +110,12 @@ public sealed class MappedFile : IDisposable
     /// <returns>A new <see cref="MappedFile"/> over the specified file.</returns>
     /// <exception cref="System.ArgumentException"><paramref name="path" /> is <c>null</c> or empty, or the file is empty and cannot be memory-mapped.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="windowSize" /> is negative or zero.</exception>
-    public static MappedFile OpenRead(string path, long windowSize = DefaultWindowSize)
-    {
+    public static MappedFile OpenRead(string path, long windowSize = DefaultWindowSize) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(windowSize);
 
         long length = new FileInfo(path).Length;
-        if (length == 0)
-        {
+        if (length == 0) {
             throw new ArgumentException("Cannot memory-map an empty file.", nameof(path));
         }
 
@@ -134,12 +131,9 @@ public sealed class MappedFile : IDisposable
             capacity: 0,
             MemoryMappedFileAccess.Read);
 
-        try
-        {
+        try {
             return new MappedFile(mmf, length, effective);
-        }
-        catch
-        {
+        } catch {
             mmf.Dispose();
             throw;
         }
@@ -154,18 +148,15 @@ public sealed class MappedFile : IDisposable
     /// <returns>A <see cref="MappedSlice"/> over the requested byte range.</returns>
     /// <exception cref="System.ObjectDisposedException">The <see cref="MappedFile"/> has been disposed.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset" /> or <paramref name="length" /> is negative, or the requested range extends past the end of the file.</exception>
-    public MappedSlice Slice(long offset, long length)
-    {
+    public MappedSlice Slice(long offset, long length) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
-        if (offset + length > Length)
-        {
+        if (offset + length > Length) {
             throw new ArgumentOutOfRangeException(nameof(length), "Requested range extends past the end of the file.");
         }
 
-        if (length == 0)
-        {
+        if (length == 0) {
             return new MappedSlice(ReadOnlySequence<byte>.Empty, []);
         }
 
@@ -179,10 +170,8 @@ public sealed class MappedFile : IDisposable
         long position = offset;
         long remaining = length;
         int leaseIndex = 0;
-        try
-        {
-            for (int w = firstWindow; w <= lastWindow; w++)
-            {
+        try {
+            for (int w = firstWindow; w <= lastWindow; w++) {
                 MappedSegment window = _windows[w];
                 long windowStart = (long)w * _windowSize;
                 int inWindowOffset = (int)(position - windowStart);
@@ -195,11 +184,8 @@ public sealed class MappedFile : IDisposable
                 position += take;
                 remaining -= take;
             }
-        }
-        catch
-        {
-            for (int i = 0; i < leaseIndex; i++)
-            {
+        } catch {
+            for (int i = 0; i < leaseIndex; i++) {
                 leases[i].Dispose();
             }
 
@@ -213,22 +199,18 @@ public sealed class MappedFile : IDisposable
     /// <param name="index">The zero-based index of the window to retrieve.</param>
     /// <returns>The <see cref="MappedSegment"/> at the specified index.</returns>
     /// <exception cref="System.ObjectDisposedException">The file has been disposed.</exception>
-    public MappedSegment GetWindow(int index)
-    {
+    public MappedSegment GetWindow(int index) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         return _windows[index];
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return;
         }
 
-        foreach (MappedSegment window in _windows)
-        {
+        foreach (MappedSegment window in _windows) {
             window.Dispose();
         }
 

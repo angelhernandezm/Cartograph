@@ -44,8 +44,7 @@ namespace Cartograph.Catalog;
 /// segment zero, so a reader can recover the entire directory structure with a single
 /// <see cref="Cartograph.Format.Artifact.ReadRecord(long)" /> call and without scanning the payload.
 /// </remarks>
-public sealed class FileCatalog
-{
+public sealed class FileCatalog {
     /// <summary>
     /// Magic bytes that prefix a serialized catalog
     /// </summary>
@@ -60,19 +59,25 @@ public sealed class FileCatalog
     /// Gets the absolute path of the folder that was packed
     /// </summary>
     /// <value>The root directory supplied to the packer, fully qualified.</value>
-    public required string SourceRoot { get; init; }
+    public required string SourceRoot {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the UTC instant at which the artifact was created
     /// </summary>
     /// <value>The creation timestamp recorded by the packer.</value>
-    public required DateTime CreatedUtc { get; init; }
+    public required DateTime CreatedUtc {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the name of the strategy used to distribute files across segments
     /// </summary>
     /// <value>One of <c>extension</c>, <c>directory</c> or <c>flat</c>.</value>
-    public required string GroupingMode { get; init; }
+    public required string GroupingMode {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the display name of each content segment, in segment order
@@ -81,26 +86,27 @@ public sealed class FileCatalog
     /// One name per content segment. Index <c>0</c> corresponds to segment index <c>1</c> of the
     /// artifact, because segment <c>0</c> always holds the catalog itself.
     /// </value>
-    public required IReadOnlyList<string> GroupNames { get; init; }
+    public required IReadOnlyList<string> GroupNames {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the catalog entries, ordered by relative path
     /// </summary>
     /// <value>One entry per packed file.</value>
-    public required IReadOnlyList<CatalogEntry> Entries { get; init; }
+    public required IReadOnlyList<CatalogEntry> Entries {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the total number of payload bytes described by the catalog
     /// </summary>
     /// <value>The sum of <see cref="CatalogEntry.Length" /> across every entry.</value>
-    public long TotalBytes
-    {
-        get
-        {
+    public long TotalBytes {
+        get {
             long total = 0;
 
-            foreach (CatalogEntry entry in Entries)
-            {
+            foreach (CatalogEntry entry in Entries) {
                 total += entry.Length;
             }
 
@@ -117,8 +123,7 @@ public sealed class FileCatalog
     /// the catalog does not name it
     /// </returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="entry" /> is <see langword="null" />.</exception>
-    public string GetGroupName(CatalogEntry entry)
-    {
+    public string GetGroupName(CatalogEntry entry) {
         ArgumentNullException.ThrowIfNull(entry);
 
         // Segment 0 always holds the catalog itself, so content segment N maps to group name N - 1.
@@ -133,8 +138,7 @@ public sealed class FileCatalog
     /// Serializes the catalog to its binary representation
     /// </summary>
     /// <returns>A byte array suitable for storage as an artifact record</returns>
-    public byte[] Serialize()
-    {
+    public byte[] Serialize() {
         using MemoryStream stream = new();
         using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -146,15 +150,13 @@ public sealed class FileCatalog
 
         writer.Write(GroupNames.Count);
 
-        foreach (string name in GroupNames)
-        {
+        foreach (string name in GroupNames) {
             writer.Write(name);
         }
 
         writer.Write(Entries.Count);
 
-        foreach (CatalogEntry entry in Entries)
-        {
+        foreach (CatalogEntry entry in Entries) {
             writer.Write(entry.RelativePath);
             writer.Write(entry.Length);
             writer.Write(entry.LastWriteUtcTicks);
@@ -177,8 +179,7 @@ public sealed class FileCatalog
     /// <exception cref="System.IO.InvalidDataException">The record does not begin with the catalog magic bytes.</exception>
     /// <exception cref="System.IO.InvalidDataException">The catalog version is not supported by this build.</exception>
     /// <exception cref="System.IO.InvalidDataException">The catalog declares a negative group or entry count.</exception>
-    public static FileCatalog Deserialize(ReadOnlySequence<byte> sequence)
-    {
+    public static FileCatalog Deserialize(ReadOnlySequence<byte> sequence) {
         byte[] buffer = sequence.ToArray();
 
         using MemoryStream stream = new(buffer, writable: false);
@@ -186,16 +187,14 @@ public sealed class FileCatalog
 
         byte[] magic = reader.ReadBytes(Magic.Length);
 
-        if (!magic.AsSpan().SequenceEqual(Magic))
-        {
+        if (!magic.AsSpan().SequenceEqual(Magic)) {
             throw new InvalidDataException(
                 "Record 0 is not a Cartograph file catalog; the artifact was not produced by a catalog-aware packer.");
         }
 
         int version = reader.ReadInt32();
 
-        if (version != CatalogVersion)
-        {
+        if (version != CatalogVersion) {
             throw new InvalidDataException(
                 $"Unsupported catalog version {version}; this build reads version {CatalogVersion}.");
         }
@@ -206,31 +205,26 @@ public sealed class FileCatalog
 
         int groupCount = reader.ReadInt32();
 
-        if (groupCount < 0)
-        {
+        if (groupCount < 0) {
             throw new InvalidDataException("Catalog declares a negative group count.");
         }
 
         string[] groupNames = new string[groupCount];
 
-        for (int i = 0; i < groupCount; i++)
-        {
+        for (int i = 0; i < groupCount; i++) {
             groupNames[i] = reader.ReadString();
         }
 
         int entryCount = reader.ReadInt32();
 
-        if (entryCount < 0)
-        {
+        if (entryCount < 0) {
             throw new InvalidDataException("Catalog declares a negative entry count.");
         }
 
         CatalogEntry[] entries = new CatalogEntry[entryCount];
 
-        for (int i = 0; i < entryCount; i++)
-        {
-            entries[i] = new CatalogEntry
-            {
+        for (int i = 0; i < entryCount; i++) {
+            entries[i] = new CatalogEntry {
                 RelativePath = reader.ReadString(),
                 Length = reader.ReadInt64(),
                 LastWriteUtcTicks = reader.ReadInt64(),
@@ -242,8 +236,7 @@ public sealed class FileCatalog
             };
         }
 
-        return new FileCatalog
-        {
+        return new FileCatalog {
             SourceRoot = sourceRoot,
             CreatedUtc = new DateTime(createdTicks, DateTimeKind.Utc),
             GroupingMode = groupingMode,

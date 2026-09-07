@@ -41,8 +41,7 @@ namespace Cartograph.Explorer.WinForms;
 /// sample: the operating system backs every read-only mapping of that file with one set of physical
 /// pages, so the second window costs almost nothing.
 /// </remarks>
-internal static class Program
-{
+internal static class Program {
     /// <summary>
     /// Starts the application
     /// </summary>
@@ -51,8 +50,7 @@ internal static class Program
     /// immediately.
     /// </param>
     [STAThread]
-    private static void Main(string[] args)
-    {
+    private static void Main(string[] args) {
         ApplicationConfiguration.Initialize();
 
         string? artifactPath = args.Length > 0 ? args[0] : null;

@@ -43,31 +43,25 @@ namespace Cartograph;
 /// on Windows, <c>madvise(MADV_WILLNEED)</c> on Linux) lets callers pay that cost up front and avoid
 /// unpredictable mid-query stalls. On unsupported platforms these methods are safe no-ops.
 /// </remarks>
-public static partial class NativePrefetch
-{
+public static partial class NativePrefetch {
     /// <summary>The <c>madvise</c> advice value that hints pages will be needed soon.</summary>
     private const int MADV_WILLNEED = 3;
 
     /// <summary>Hints the OS to make the given region resident. Safe no-op on unsupported platforms.</summary>
     /// <param name="address">Pointer to the start of the virtual memory region to prefetch.</param>
     /// <param name="length">The number of bytes to prefetch.</param>
-    public static unsafe void WillNeed(void* address, nuint length)
-    {
-        if (address is null || length == 0)
-        {
+    public static unsafe void WillNeed(void* address, nuint length) {
+        if (address is null || length == 0) {
             return;
         }
 
-        if (OperatingSystem.IsWindows())
-        {
+        if (OperatingSystem.IsWindows()) {
             WIN32_MEMORY_RANGE_ENTRY entry;
             entry.VirtualAddress = (IntPtr)address;
             entry.NumberOfBytes = length;
             // Pseudo handle (HANDLE)-1 == current process; avoids allocating a real handle.
             _ = PrefetchVirtualMemory(new IntPtr(-1), (UIntPtr)1, ref entry, 0);
-        }
-        else if (OperatingSystem.IsLinux())
-        {
+        } else if (OperatingSystem.IsLinux()) {
             _ = madvise((IntPtr)address, length, MADV_WILLNEED);
         }
         // Other platforms: no-op.
@@ -76,13 +70,11 @@ public static partial class NativePrefetch
     /// <summary>Hints the OS to make the memory backing <paramref name="segment"/> resident.</summary>
     /// <param name="segment">The mapped segment whose pages should be prefetched.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="segment" /> is <c>null</c>.</exception>
-    public static unsafe void WillNeed(MappedSegment segment)
-    {
+    public static unsafe void WillNeed(MappedSegment segment) {
         ArgumentNullException.ThrowIfNull(segment);
         using ViewLease lease = segment.Lease();
         ReadOnlyMemory<byte> memory = lease.Memory;
-        if (memory.IsEmpty)
-        {
+        if (memory.IsEmpty) {
             return;
         }
 
@@ -114,8 +106,7 @@ public static partial class NativePrefetch
 
     /// <summary>Describes a virtual memory range for use with <c>PrefetchVirtualMemory</c>.</summary>
     [StructLayout(LayoutKind.Sequential)]
-    private struct WIN32_MEMORY_RANGE_ENTRY
-    {
+    private struct WIN32_MEMORY_RANGE_ENTRY {
         /// <summary>The base address of the virtual memory range.</summary>
         public IntPtr VirtualAddress;
         /// <summary>The size of the virtual memory range in bytes.</summary>

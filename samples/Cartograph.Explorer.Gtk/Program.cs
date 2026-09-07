@@ -37,9 +37,8 @@ namespace Cartograph.Explorer.GtkApp;
 /// <summary>
 /// Hosts the entry point of the GTK4 Cartograph artifact explorer
 /// </summary>
-/// <remarks>
-/// <para>
-/// The application identifier is registered with <see cref="Gio.ApplicationFlags.NonUnique"/>. That
+/// <remarks><para>
+/// The application identifier is registered with <see cref="Gio.ApplicationFlags.NonUnique" />. That
 /// flag is the single most important detail in this file: without it GTK treats the first process as
 /// the owner of the application identifier and every later launch merely asks that first process to
 /// present its window, which would make it impossible to demonstrate several processes sharing one
@@ -49,10 +48,8 @@ namespace Cartograph.Explorer.GtkApp;
 /// The namespace is deliberately <c>Cartograph.Explorer.GtkApp</c> rather than
 /// <c>Cartograph.Explorer.Gtk</c>, because the latter would shadow the binding's own <c>Gtk</c>
 /// namespace and force every widget reference to be written as <c>global::Gtk</c>.
-/// </para>
-/// </remarks>
-internal static class Program
-{
+/// </para></remarks>
+internal static class Program {
     /// <summary>
     /// The reverse-DNS identifier GTK registers this application under
     /// </summary>
@@ -61,22 +58,18 @@ internal static class Program
     /// <summary>
     /// Runs the explorer, optionally opening an artifact supplied on the command line
     /// </summary>
-    /// <param name="args">
-    /// Command-line arguments. When the first argument is present it is treated as the path of the
+    /// <param name="args">Command-line arguments. When the first argument is present it is treated as the path of the
     /// artifact to open at start-up, which is how a window launches a sibling process onto the same
-    /// file.
-    /// </param>
+    /// file.</param>
     /// <returns>The process exit code produced by the GTK main loop.</returns>
-    private static int Main(string[] args)
-    {
+    private static int Main(string[] args) {
         string? initialPath = args.Length > 0 ? args[0] : null;
 
         Gtk.Application application = Gtk.Application.New(ApplicationId, Gio.ApplicationFlags.NonUnique);
 
         MainWindow? window = null;
 
-        application.OnActivate += (sender, _) =>
-        {
+        application.OnActivate += (sender, _) => {
             window = new MainWindow((Gtk.Application)sender, initialPath);
             window.Present();
         };

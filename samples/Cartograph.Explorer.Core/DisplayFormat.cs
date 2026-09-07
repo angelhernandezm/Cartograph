@@ -37,8 +37,7 @@ namespace Cartograph.Explorer.Core;
 /// <summary>
 /// Formats the quantities the explorer displays
 /// </summary>
-public static class DisplayFormat
-{
+public static class DisplayFormat {
     /// <summary>
     /// Unit suffixes used when scaling a byte count, from bytes upwards
     /// </summary>
@@ -49,18 +48,15 @@ public static class DisplayFormat
     /// </summary>
     /// <param name="bytes">The value to format</param>
     /// <returns>A string such as <c>3.42 MiB</c>, or <c>512 B</c> for values below one kibibyte</returns>
-    public static string Bytes(long bytes)
-    {
-        if (bytes < 1024)
-        {
+    public static string Bytes(long bytes) {
+        if (bytes < 1024) {
             return string.Create(CultureInfo.InvariantCulture, $"{bytes} B");
         }
 
         double value = bytes;
         int unit = 0;
 
-        while (value >= 1024 && unit < ByteUnits.Length - 1)
-        {
+        while (value >= 1024 && unit < ByteUnits.Length - 1) {
             value /= 1024;
             unit++;
         }
@@ -80,12 +76,10 @@ public static class DisplayFormat
     /// </summary>
     /// <param name="elapsed">The duration to format</param>
     /// <returns>A string such as <c>412 us</c>, <c>18.4 ms</c> or <c>2.31 s</c>.</returns>
-    public static string Duration(TimeSpan elapsed)
-    {
+    public static string Duration(TimeSpan elapsed) {
         double milliseconds = elapsed.TotalMilliseconds;
 
-        if (milliseconds < 1)
-        {
+        if (milliseconds < 1) {
             return string.Create(CultureInfo.InvariantCulture, $"{elapsed.TotalMicroseconds:0} us");
         }
 
@@ -103,10 +97,8 @@ public static class DisplayFormat
     /// A string such as <c>1.82 GiB/s</c>, or <c>n/a</c> when the elapsed time is too small to give a
     /// meaningful rate
     /// </returns>
-    public static string Rate(long bytes, TimeSpan elapsed)
-    {
-        if (elapsed.TotalSeconds <= 0)
-        {
+    public static string Rate(long bytes, TimeSpan elapsed) {
+        if (elapsed.TotalSeconds <= 0) {
             return "n/a";
         }
 

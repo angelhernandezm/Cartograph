@@ -64,8 +64,7 @@ public readonly record struct ProcessFootprint(
 /// <see cref="Footprint" /> stays flat no matter how large the artifact is.
 /// </para>
 /// </remarks>
-public sealed class ArtifactSession : IDisposable
-{
+public sealed class ArtifactSession : IDisposable {
     /// <summary>
     /// The artifact and its catalog
     /// </summary>
@@ -97,8 +96,7 @@ public sealed class ArtifactSession : IDisposable
         CatalogedArtifact artifact,
         InstancePresence presence,
         ChunkSourceKind chunkSource,
-        TimeSpan openElapsed)
-    {
+        TimeSpan openElapsed) {
         _artifact = artifact;
         _presence = presence;
         ChunkSource = chunkSource;
@@ -139,7 +137,9 @@ public sealed class ArtifactSession : IDisposable
     /// Gets the read strategy the artifact was opened with
     /// </summary>
     /// <value>Either memory mapping or pooled positional reads.</value>
-    public ChunkSourceKind ChunkSource { get; }
+    public ChunkSourceKind ChunkSource {
+        get;
+    }
 
     /// <summary>
     /// Gets the time the open took
@@ -148,7 +148,9 @@ public sealed class ArtifactSession : IDisposable
     /// Expected to be effectively constant regardless of artifact size, because opening reads only the
     /// header, the manifest, the record directories and the catalog record.
     /// </value>
-    public TimeSpan OpenElapsed { get; }
+    public TimeSpan OpenElapsed {
+        get;
+    }
 
     /// <summary>
     /// Gets the number of artifact bytes this session has read since it was opened
@@ -160,10 +162,8 @@ public sealed class ArtifactSession : IDisposable
     /// Gets the memory the current process is holding right now
     /// </summary>
     /// <value>A freshly sampled footprint.</value>
-    public ProcessFootprint Footprint
-    {
-        get
-        {
+    public ProcessFootprint Footprint {
+        get {
             using Process self = Process.GetCurrentProcess();
             self.Refresh();
 
@@ -189,8 +189,7 @@ public sealed class ArtifactSession : IDisposable
     public static ArtifactSession Open(
         string path,
         string frontEnd,
-        ChunkSourceKind chunkSource = ChunkSourceKind.Mapped)
-    {
+        ChunkSourceKind chunkSource = ChunkSourceKind.Mapped) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentException.ThrowIfNullOrEmpty(frontEnd);
 
@@ -202,14 +201,11 @@ public sealed class ArtifactSession : IDisposable
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(start);
 
-        try
-        {
+        try {
             InstancePresence presence = new(artifact.Path, frontEnd);
 
             return new ArtifactSession(artifact, presence, chunkSource, elapsed);
-        }
-        catch
-        {
+        } catch {
             artifact.Dispose();
             throw;
         }
@@ -224,22 +220,18 @@ public sealed class ArtifactSession : IDisposable
     /// </param>
     /// <returns>The matching entries, in catalog order</returns>
     /// <exception cref="System.ObjectDisposedException">The session has already been disposed.</exception>
-    public IReadOnlyList<CatalogEntry> Filter(string? query)
-    {
+    public IReadOnlyList<CatalogEntry> Filter(string? query) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (string.IsNullOrWhiteSpace(query))
-        {
+        if (string.IsNullOrWhiteSpace(query)) {
             return Entries;
         }
 
         string term = query.Trim();
         List<CatalogEntry> matches = [];
 
-        foreach (CatalogEntry entry in Entries)
-        {
-            if (entry.RelativePath.Contains(term, StringComparison.OrdinalIgnoreCase))
-            {
+        foreach (CatalogEntry entry in Entries) {
+            if (entry.RelativePath.Contains(term, StringComparison.OrdinalIgnoreCase)) {
                 matches.Add(entry);
             }
         }
@@ -256,8 +248,7 @@ public sealed class ArtifactSession : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="entry" /> is <see langword="null" />.</exception>
     /// <exception cref="System.ObjectDisposedException">The session has already been disposed.</exception>
     /// <exception cref="Cartograph.Format.CartographFormatException">A record failed its checksum check.</exception>
-    public RecordPreview Preview(CatalogEntry entry, int prefixBytes = RecordPreview.DefaultPrefixBytes)
-    {
+    public RecordPreview Preview(CatalogEntry entry, int prefixBytes = RecordPreview.DefaultPrefixBytes) {
         ArgumentNullException.ThrowIfNull(entry);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -282,8 +273,7 @@ public sealed class ArtifactSession : IDisposable
     public CatalogVerification Verify(
         CatalogEntry entry,
         IProgress<long>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(entry);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -304,8 +294,7 @@ public sealed class ArtifactSession : IDisposable
     /// <exception cref="System.ArgumentException"><paramref name="destinationPath" /> is <see langword="null" /> or empty.</exception>
     /// <exception cref="System.ObjectDisposedException">The session has already been disposed.</exception>
     /// <exception cref="System.IO.IOException">The destination could not be written.</exception>
-    public long Extract(CatalogEntry entry, string destinationPath)
-    {
+    public long Extract(CatalogEntry entry, string destinationPath) {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentException.ThrowIfNullOrEmpty(destinationPath);
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -334,8 +323,7 @@ public sealed class ArtifactSession : IDisposable
         IEnumerable<CatalogEntry> entries,
         string destinationRoot,
         IProgress<int>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentException.ThrowIfNullOrEmpty(destinationRoot);
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -344,8 +332,7 @@ public sealed class ArtifactSession : IDisposable
         long written = 0;
         int done = 0;
 
-        foreach (CatalogEntry entry in entries)
-        {
+        foreach (CatalogEntry entry in entries) {
             cancellationToken.ThrowIfCancellationRequested();
 
             string destination = ResolveWithin(root, entry.RelativePath);
@@ -364,8 +351,7 @@ public sealed class ArtifactSession : IDisposable
     /// </summary>
     /// <returns>The live peers, including this process</returns>
     /// <exception cref="System.ObjectDisposedException">The session has already been disposed.</exception>
-    public IReadOnlyList<PeerInstance> RefreshPeers()
-    {
+    public IReadOnlyList<PeerInstance> RefreshPeers() {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         return _presence.Refresh(BytesTouched);
@@ -383,8 +369,7 @@ public sealed class ArtifactSession : IDisposable
     /// writing outside the folder the user chose.
     /// </remarks>
     /// <exception cref="System.IO.IOException">The entry resolves outside <paramref name="root" />.</exception>
-    private static string ResolveWithin(string root, string relativePath)
-    {
+    private static string ResolveWithin(string root, string relativePath) {
         string combined = System.IO.Path.GetFullPath(
             System.IO.Path.Combine(root, relativePath.Replace('/', System.IO.Path.DirectorySeparatorChar)));
 
@@ -392,8 +377,7 @@ public sealed class ArtifactSession : IDisposable
             ? root
             : root + System.IO.Path.DirectorySeparatorChar;
 
-        if (!combined.StartsWith(prefix, StringComparison.Ordinal))
-        {
+        if (!combined.StartsWith(prefix, StringComparison.Ordinal)) {
             throw new IOException(
                 $"Catalog entry '{relativePath}' resolves outside the destination folder and was refused.");
         }
@@ -404,10 +388,8 @@ public sealed class ArtifactSession : IDisposable
     /// <summary>
     /// Closes the artifact and withdraws this process from the presence registry
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 

@@ -38,8 +38,7 @@ namespace Cartograph.Harness;
 /// <summary>
 /// Identifies the operation the harness was asked to perform
 /// </summary>
-internal enum HarnessCommand
-{
+internal enum HarnessCommand {
     /// <summary>
     /// Print the usage text and exit
     /// </summary>
@@ -74,12 +73,9 @@ internal enum HarnessCommand
 /// <summary>
 /// Selects how packed files are distributed across artifact segments
 /// </summary>
-/// <remarks>
-/// Segments are the unit of checksum and of append-only growth in the artifact format, so how files
-/// are grouped is a genuine application-level decision rather than a cosmetic one.
-/// </remarks>
-internal enum SegmentGrouping
-{
+/// <remarks>Segments are the unit of checksum and of append-only growth in the artifact format, so how files
+/// are grouped is a genuine application-level decision rather than a cosmetic one.</remarks>
+internal enum SegmentGrouping {
     /// <summary>
     /// One segment per distinct file extension
     /// </summary>
@@ -99,36 +95,20 @@ internal enum SegmentGrouping
 /// <summary>
 /// Holds the fully parsed command line for a single harness invocation
 /// </summary>
-internal sealed class HarnessOptions
-{
+internal sealed class HarnessOptions {
     /// <summary>
     /// Default upper bound on the size of any individual packed file
     /// </summary>
-    /// <remarks>
-    /// Streaming packs read file contents through a small pooled buffer at save time rather than
-    /// buffering them on the managed heap, so there is no longer a memory reason to cap file size.
-    /// The default is therefore unlimited; supply <c>--max-file-size</c> to impose a limit.
-    /// </remarks>
     public const long DefaultMaxFileSize = long.MaxValue;
 
     /// <summary>
     /// Default upper bound on the total number of payload bytes packed in one run
     /// </summary>
-    /// <remarks>
-    /// Because records stream from disk at save time instead of being buffered in managed memory,
-    /// packing an arbitrarily large tree no longer implies an unbounded allocation. The default is
-    /// therefore unlimited; supply <c>--max-total</c> to impose a budget.
-    /// </remarks>
     public const long DefaultMaxTotalBytes = long.MaxValue;
 
     /// <summary>
     /// Default maximum number of bytes stored in a single record
     /// </summary>
-    /// <remarks>
-    /// Files larger than this are split across several consecutive records so that no single record
-    /// approaches <see cref="ArtifactFormat.MaxRecordLength" />, keeping each streamed piece a
-    /// comfortable size.
-    /// </remarks>
     public const long DefaultPieceSize = 256L * 1024 * 1024;
 
     /// <summary>
@@ -145,17 +125,19 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Gets the positional input path
     /// </summary>
-    /// <value>
-    /// A folder for <see cref="HarnessCommand.Pack" /> and <see cref="HarnessCommand.Roundtrip" />,
-    /// an artifact file for <see cref="HarnessCommand.Load" />, and <see langword="null" /> otherwise.
-    /// </value>
-    public string? InputPath { get; private set; }
+    /// <value>A folder for <see cref="HarnessCommand.Pack" /> and <see cref="HarnessCommand.Roundtrip" />,
+    /// an artifact file for <see cref="HarnessCommand.Load" />, and <see langword="null" /> otherwise.</value>
+    public string? InputPath {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the path of the artifact to create
     /// </summary>
     /// <value>The value of <c>--out</c>, or <see langword="null" /> to derive one from the input path.</value>
-    public string? OutputPath { get; private set; }
+    public string? OutputPath {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the segment grouping strategy
@@ -196,31 +178,29 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Gets the maximum number of bytes stored in a single record
     /// </summary>
-    /// <value>
-    /// Files larger than this are split across consecutive records; defaults to
+    /// <value>Files larger than this are split across consecutive records; defaults to
     /// <see cref="DefaultPieceSize" />. Always greater than zero and never larger than
-    /// <see cref="ArtifactFormat.MaxRecordLength" />.
-    /// </value>
+    /// <see cref="ArtifactFormat.MaxRecordLength" />.</value>
     public long PieceSize { get; private set; } = DefaultPieceSize;
 
     /// <summary>
     /// Gets a value indicating whether the packer computes a whole-file checksum for each file
     /// </summary>
-    /// <value>
-    /// <see langword="true" /> when <c>--checksums</c> was supplied, in which case the packer spends
+    /// <value><see langword="true" /> when <c>--checksums</c> was supplied, in which case the packer spends
     /// an extra read pass per file; otherwise <see langword="false" /> and the catalog stores
-    /// <c>0</c> for every checksum.
-    /// </value>
-    public bool ComputeChecksums { get; private set; }
+    /// <c>0</c> for every checksum.</value>
+    public bool ComputeChecksums {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether reparse points are traversed
     /// </summary>
-    /// <value>
-    /// <see langword="true" /> when symbolic links and junctions are followed; otherwise
-    /// <see langword="false" />, which is the default and avoids cycles.
-    /// </value>
-    public bool FollowLinks { get; private set; }
+    /// <value><see langword="true" /> when symbolic links and junctions are followed; otherwise
+    /// <see langword="false" />, which is the default and avoids cycles.</value>
+    public bool FollowLinks {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the loader recomputes and compares record checksums
@@ -231,10 +211,8 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Gets a value indicating whether the artifact validates checksums as records are read
     /// </summary>
-    /// <value>
-    /// Maps directly to <see cref="ArtifactOpenOptions.VerifyChecksums" />;
-    /// <see langword="true" /> unless <c>--no-record-checksums</c> was supplied.
-    /// </value>
+    /// <value>Maps directly to <see cref="ArtifactOpenOptions.VerifyChecksums" />;
+    /// <see langword="true" /> unless <c>--no-record-checksums</c> was supplied.</value>
     public bool VerifyRecordChecksums { get; private set; } = true;
 
     /// <summary>
@@ -247,7 +225,9 @@ internal sealed class HarnessOptions
     /// Gets a value indicating whether the catalog listing is printed
     /// </summary>
     /// <value><see langword="true" /> when <c>--list</c> was supplied.</value>
-    public bool List { get; private set; }
+    public bool List {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the maximum number of catalog rows to print
@@ -259,34 +239,42 @@ internal sealed class HarnessOptions
     /// Gets the directory into which packed files are extracted
     /// </summary>
     /// <value>The value of <c>--extract</c>, or <see langword="null" /> when extraction is not requested.</value>
-    public string? ExtractDirectory { get; private set; }
+    public string? ExtractDirectory {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the relative path of a single record to print
     /// </summary>
     /// <value>The value of <c>--cat</c>, or <see langword="null" /> when no record was requested.</value>
-    public string? Cat { get; private set; }
+    public string? Cat {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the asynchronous artifact API is exercised
     /// </summary>
     /// <value><see langword="true" /> when <c>--async</c> was supplied.</value>
-    public bool Async { get; private set; }
+    public bool Async {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether informational output is suppressed
     /// </summary>
     /// <value><see langword="true" /> when <c>--quiet</c> was supplied.</value>
-    public bool Quiet { get; private set; }
+    public bool Quiet {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the machine readable CSV summary is emitted
     /// </summary>
-    /// <value>
-    /// <see langword="true" /> when <c>--csv</c> was supplied. The columns match the ones the .NET
-    /// baseline prints, so the two programs can be profiled into a single table.
-    /// </value>
-    public bool Csv { get; private set; }
+    /// <value><see langword="true" /> when <c>--csv</c> was supplied. The columns match the ones the .NET
+    /// baseline prints, so the two programs can be profiled into a single table.</value>
+    public bool Csv {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the artifact produced by a demo run is deleted afterwards
@@ -307,9 +295,8 @@ internal sealed class HarnessOptions
     /// <param name="options">On success, the parsed options; otherwise <see langword="null" /></param>
     /// <param name="error">On failure, a human readable description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when the command line was understood; otherwise <see langword="false" /></returns>
-    /// <exception cref="System.ArgumentNullException"><paramref name="args" /> is <see langword="null" />.</exception>
-    public static bool TryParse(string[] args, out HarnessOptions? options, out string? error)
-    {
+    /// <exception cref="System.ArgumentNullException"></exception>
+    public static bool TryParse(string[] args, out HarnessOptions? options, out string? error) {
         ArgumentNullException.ThrowIfNull(args);
 
         options = null;
@@ -318,8 +305,7 @@ internal sealed class HarnessOptions
         HarnessOptions parsed = new();
         int index = 0;
 
-        if (args.Length == 0)
-        {
+        if (args.Length == 0) {
             parsed.Command = HarnessCommand.Help;
             options = parsed;
             return true;
@@ -327,8 +313,7 @@ internal sealed class HarnessOptions
 
         string first = args[0];
 
-        switch (first.ToLowerInvariant())
-        {
+        switch (first.ToLowerInvariant()) {
             case "pack":
                 parsed.Command = HarnessCommand.Pack;
                 index = 1;
@@ -371,14 +356,11 @@ internal sealed class HarnessOptions
                 break;
         }
 
-        for (; index < args.Length; index++)
-        {
+        for (; index < args.Length; index++) {
             string arg = args[index];
 
-            if (!arg.StartsWith('-'))
-            {
-                if (parsed.InputPath is not null)
-                {
+            if (!arg.StartsWith('-')) {
+                if (parsed.InputPath is not null) {
                     error = $"Unexpected positional argument '{arg}'; a path was already supplied.";
                     return false;
                 }
@@ -387,12 +369,10 @@ internal sealed class HarnessOptions
                 continue;
             }
 
-            switch (arg.ToLowerInvariant())
-            {
+            switch (arg.ToLowerInvariant()) {
                 case "-o":
                 case "--out":
-                    if (!TryTakeValue(args, ref index, arg, out string? outPath, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? outPath, out error)) {
                         return false;
                     }
 
@@ -400,13 +380,11 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--group-by":
-                    if (!TryTakeValue(args, ref index, arg, out string? groupBy, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? groupBy, out error)) {
                         return false;
                     }
 
-                    switch (groupBy!.ToLowerInvariant())
-                    {
+                    switch (groupBy!.ToLowerInvariant()) {
                         case "ext":
                         case "extension":
                             parsed.Grouping = SegmentGrouping.Extension;
@@ -430,8 +408,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--include":
-                    if (!TryTakeValue(args, ref index, arg, out string? include, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? include, out error)) {
                         return false;
                     }
 
@@ -439,8 +416,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--exclude":
-                    if (!TryTakeValue(args, ref index, arg, out string? exclude, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? exclude, out error)) {
                         return false;
                     }
 
@@ -448,8 +424,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--max-file-size":
-                    if (!TryTakeSize(args, ref index, arg, out long maxFile, out error))
-                    {
+                    if (!TryTakeSize(args, ref index, arg, out long maxFile, out error)) {
                         return false;
                     }
 
@@ -457,8 +432,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--max-total":
-                    if (!TryTakeSize(args, ref index, arg, out long maxTotal, out error))
-                    {
+                    if (!TryTakeSize(args, ref index, arg, out long maxTotal, out error)) {
                         return false;
                     }
 
@@ -466,8 +440,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--max-files":
-                    if (!TryTakeInt32(args, ref index, arg, out int maxFiles, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int maxFiles, out error)) {
                         return false;
                     }
 
@@ -475,13 +448,11 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--piece-size":
-                    if (!TryTakeSize(args, ref index, arg, out long pieceSize, out error))
-                    {
+                    if (!TryTakeSize(args, ref index, arg, out long pieceSize, out error)) {
                         return false;
                     }
 
-                    if (pieceSize > ArtifactFormat.MaxRecordLength)
-                    {
+                    if (pieceSize > ArtifactFormat.MaxRecordLength) {
                         error =
                             $"Option '{arg}' must not exceed {ArtifactFormat.MaxRecordLength} bytes " +
                             "(the maximum size of a single record).";
@@ -508,13 +479,11 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--strategy":
-                    if (!TryTakeValue(args, ref index, arg, out string? strategy, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? strategy, out error)) {
                         return false;
                     }
 
-                    switch (strategy!.ToLowerInvariant())
-                    {
+                    switch (strategy!.ToLowerInvariant()) {
                         case "mapped":
                         case "mmap":
                             parsed.Strategy = ChunkSourceKind.Mapped;
@@ -538,8 +507,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--top":
-                    if (!TryTakeInt32(args, ref index, arg, out int top, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int top, out error)) {
                         return false;
                     }
 
@@ -547,8 +515,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--extract":
-                    if (!TryTakeValue(args, ref index, arg, out string? extract, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? extract, out error)) {
                         return false;
                     }
 
@@ -556,8 +523,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--cat":
-                    if (!TryTakeValue(args, ref index, arg, out string? cat, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? cat, out error)) {
                         return false;
                     }
 
@@ -582,8 +548,7 @@ internal sealed class HarnessOptions
                     break;
 
                 case "--demo-files":
-                    if (!TryTakeInt32(args, ref index, arg, out int demoFiles, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int demoFiles, out error)) {
                         return false;
                     }
 
@@ -602,14 +567,12 @@ internal sealed class HarnessOptions
             }
         }
 
-        if (parsed.Command is HarnessCommand.Pack or HarnessCommand.Roundtrip && parsed.InputPath is null)
-        {
+        if (parsed.Command is HarnessCommand.Pack or HarnessCommand.Roundtrip && parsed.InputPath is null) {
             error = "A root folder is required. Try: cartograph-harness roundtrip <folder>";
             return false;
         }
 
-        if (parsed.Command is HarnessCommand.Load or HarnessCommand.Manifest && parsed.InputPath is null)
-        {
+        if (parsed.Command is HarnessCommand.Load or HarnessCommand.Manifest && parsed.InputPath is null) {
             string verb = parsed.Command == HarnessCommand.Manifest ? "manifest" : "load";
             error = $"An artifact path is required. Try: cartograph-harness {verb} <artifact>";
             return false;
@@ -622,8 +585,7 @@ internal sealed class HarnessOptions
     /// <summary>
     /// Writes the usage text to the standard output stream
     /// </summary>
-    public static void PrintUsage()
-    {
+    public static void PrintUsage() {
         Console.WriteLine(
             $"""
             cartograph-harness - pack a folder tree into a Cartograph artifact and read it back.
@@ -702,8 +664,7 @@ internal sealed class HarnessOptions
     /// </summary>
     /// <param name="value">Default size in bytes</param>
     /// <returns>The word <c>unlimited</c> when <paramref name="value" /> is <see cref="long.MaxValue" />; otherwise a compact byte figure</returns>
-    private static string DescribeSizeDefault(long value)
-    {
+    private static string DescribeSizeDefault(long value) {
         return value == long.MaxValue ? "unlimited" : ConsoleReport.Bytes(value);
     }
 
@@ -716,10 +677,8 @@ internal sealed class HarnessOptions
     /// <param name="value">On success, the consumed value; otherwise <see langword="null" /></param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a value was available; otherwise <see langword="false" /></returns>
-    private static bool TryTakeValue(string[] args, ref int index, string option, out string? value, out string? error)
-    {
-        if (index + 1 >= args.Length)
-        {
+    private static bool TryTakeValue(string[] args, ref int index, string option, out string? value, out string? error) {
+        if (index + 1 >= args.Length) {
             value = null;
             error = $"Option '{option}' requires a value.";
             return false;
@@ -740,17 +699,14 @@ internal sealed class HarnessOptions
     /// <param name="value">On success, the parsed value; otherwise zero</param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a positive integer was parsed; otherwise <see langword="false" /></returns>
-    private static bool TryTakeInt32(string[] args, ref int index, string option, out int value, out string? error)
-    {
+    private static bool TryTakeInt32(string[] args, ref int index, string option, out int value, out string? error) {
         value = 0;
 
-        if (!TryTakeValue(args, ref index, option, out string? raw, out error))
-        {
+        if (!TryTakeValue(args, ref index, option, out string? raw, out error)) {
             return false;
         }
 
-        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value <= 0)
-        {
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value <= 0) {
             error = $"Option '{option}' expects a positive integer but received '{raw}'.";
             return false;
         }
@@ -767,12 +723,10 @@ internal sealed class HarnessOptions
     /// <param name="value">On success, the size in bytes; otherwise zero</param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a positive size was parsed; otherwise <see langword="false" /></returns>
-    private static bool TryTakeSize(string[] args, ref int index, string option, out long value, out string? error)
-    {
+    private static bool TryTakeSize(string[] args, ref int index, string option, out long value, out string? error) {
         value = 0;
 
-        if (!TryTakeValue(args, ref index, option, out string? raw, out error))
-        {
+        if (!TryTakeValue(args, ref index, option, out string? raw, out error)) {
             return false;
         }
 
@@ -781,25 +735,19 @@ internal sealed class HarnessOptions
 
         if (text.EndsWith("KiB", StringComparison.OrdinalIgnoreCase) ||
             text.EndsWith("MiB", StringComparison.OrdinalIgnoreCase) ||
-            text.EndsWith("GiB", StringComparison.OrdinalIgnoreCase))
-        {
-            multiplier = char.ToUpperInvariant(text[^3]) switch
-            {
+            text.EndsWith("GiB", StringComparison.OrdinalIgnoreCase)) {
+            multiplier = char.ToUpperInvariant(text[^3]) switch {
                 'K' => 1024L,
                 'M' => 1024L * 1024,
                 _ => 1024L * 1024 * 1024,
             };
 
             text = text[..^3];
-        }
-        else if (text.Length > 0)
-        {
+        } else if (text.Length > 0) {
             char suffix = char.ToUpperInvariant(text[^1]);
 
-            if (suffix is 'K' or 'M' or 'G')
-            {
-                multiplier = suffix switch
-                {
+            if (suffix is 'K' or 'M' or 'G') {
+                multiplier = suffix switch {
                     'K' => 1024L,
                     'M' => 1024L * 1024,
                     _ => 1024L * 1024 * 1024,
@@ -809,8 +757,7 @@ internal sealed class HarnessOptions
             }
         }
 
-        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long units) || units <= 0)
-        {
+        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long units) || units <= 0) {
             error = $"Option '{option}' expects a positive size but received '{raw}'.";
             return false;
         }

@@ -45,8 +45,7 @@ namespace Cartograph;
 /// so there is no steady-state allocation proportional to total file size. It is async-friendly and
 /// often wins on large sequential scans.
 /// </remarks>
-public sealed class RandomAccessChunkSource : IChunkSource
-{
+public sealed class RandomAccessChunkSource : IChunkSource {
     /// <summary>The file handle every read is issued against.</summary>
     private readonly SafeFileHandle _handle;
 
@@ -57,8 +56,7 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <param name="handle">The file handle to read from.</param>
     /// <param name="ownsHandle">When <see langword="true"/>, disposing this source disposes <paramref name="handle"/>.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="handle" /> is <c>null</c>.</exception>
-    public RandomAccessChunkSource(SafeFileHandle handle, bool ownsHandle = false)
-    {
+    public RandomAccessChunkSource(SafeFileHandle handle, bool ownsHandle = false) {
         ArgumentNullException.ThrowIfNull(handle);
         _handle = handle;
         _ownsHandle = ownsHandle;
@@ -68,8 +66,7 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <summary>Opens <paramref name="path"/> read-only as a pooled random-access chunk source.</summary>
     /// <param name="path">The path to the file to open.</param>
     /// <returns>A new <see cref="RandomAccessChunkSource"/> that owns the underlying file handle.</returns>
-    public static RandomAccessChunkSource Open(string path)
-    {
+    public static RandomAccessChunkSource Open(string path) {
         SafeFileHandle handle = File.OpenHandle(
             path,
             FileMode.Open,
@@ -80,7 +77,9 @@ public sealed class RandomAccessChunkSource : IChunkSource
     }
 
     /// <inheritdoc />
-    public long Length { get; }
+    public long Length {
+        get;
+    }
 
     /// <inheritdoc />
     /// <param name="offset">The byte offset within the file to start reading from.</param>
@@ -88,18 +87,14 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <returns>A <see cref="ChunkLease"/> backed by a pooled buffer containing the requested bytes.</returns>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset" /> or <paramref name="length" /> is negative, or the requested range extends past the end of the file.</exception>
     /// <exception cref="System.IO.EndOfStreamException">Unexpected end of file while reading a chunk.</exception>
-    public ChunkLease Read(long offset, int length)
-    {
+    public ChunkLease Read(long offset, int length) {
         ValidateRange(offset, length);
         byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
-        try
-        {
+        try {
             int total = 0;
-            while (total < length)
-            {
+            while (total < length) {
                 int read = RandomAccess.Read(_handle, buffer.AsSpan(total, length - total), offset + total);
-                if (read == 0)
-                {
+                if (read == 0) {
                     throw new EndOfStreamException("Unexpected end of file while reading a chunk.");
                 }
 
@@ -107,9 +102,7 @@ public sealed class RandomAccessChunkSource : IChunkSource
             }
 
             return new ChunkLease(new ReadOnlySequence<byte>(buffer, 0, length), new PooledBuffer(buffer));
-        }
-        catch
-        {
+        } catch {
             ArrayPool<byte>.Shared.Return(buffer);
             throw;
         }
@@ -123,20 +116,16 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset" /> or <paramref name="length" /> is negative, or the requested range extends past the end of the file.</exception>
     /// <exception cref="System.IO.EndOfStreamException">Unexpected end of file while reading a chunk.</exception>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken" />.</exception>
-    public async ValueTask<ChunkLease> ReadAsync(long offset, int length, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask<ChunkLease> ReadAsync(long offset, int length, CancellationToken cancellationToken = default) {
         ValidateRange(offset, length);
         byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
-        try
-        {
+        try {
             int total = 0;
-            while (total < length)
-            {
+            while (total < length) {
                 int read = await RandomAccess
                     .ReadAsync(_handle, buffer.AsMemory(total, length - total), offset + total, cancellationToken)
                     .ConfigureAwait(false);
-                if (read == 0)
-                {
+                if (read == 0) {
                     throw new EndOfStreamException("Unexpected end of file while reading a chunk.");
                 }
 
@@ -144,19 +133,15 @@ public sealed class RandomAccessChunkSource : IChunkSource
             }
 
             return new ChunkLease(new ReadOnlySequence<byte>(buffer, 0, length), new PooledBuffer(buffer));
-        }
-        catch
-        {
+        } catch {
             ArrayPool<byte>.Shared.Return(buffer);
             throw;
         }
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        if (_ownsHandle)
-        {
+    public void Dispose() {
+        if (_ownsHandle) {
             _handle.Dispose();
         }
     }
@@ -165,12 +150,10 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <param name="offset">The byte offset to validate.</param>
     /// <param name="length">The number of bytes to validate.</param>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="offset" /> or <paramref name="length" /> is negative, or the requested range extends past the end of the file.</exception>
-    private void ValidateRange(long offset, int length)
-    {
+    private void ValidateRange(long offset, int length) {
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
-        if (offset + length > Length)
-        {
+        if (offset + length > Length) {
             throw new ArgumentOutOfRangeException(nameof(length), "Requested range extends past the end of the file.");
         }
     }
@@ -178,17 +161,15 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// <summary>
     /// Wraps a rented <see cref="ArrayPool{T}"/> buffer and returns it to the pool on disposal.
     /// </summary>
-    private sealed class PooledBuffer(byte[] buffer) : IDisposable
-    {
+    /// <param name="buffer">The rented buffer to return to <see cref="ArrayPool{Byte}.Shared"/> on disposal.</param>
+    private sealed class PooledBuffer(byte[] buffer) : IDisposable {
         /// <summary>The rented buffer, exchanged for <c>null</c> when it is returned to the pool.</summary>
         private byte[]? _buffer = buffer;
 
         /// <summary>Returns the rented buffer to <see cref="ArrayPool{Byte}.Shared"/>. Safe to call more than once.</summary>
-        public void Dispose()
-        {
+        public void Dispose() {
             byte[]? rented = Interlocked.Exchange(ref _buffer, null);
-            if (rented is not null)
-            {
+            if (rented is not null) {
                 ArrayPool<byte>.Shared.Return(rented);
             }
         }

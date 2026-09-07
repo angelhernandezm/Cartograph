@@ -39,8 +39,7 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Identifies the operation the baseline was asked to perform
 /// </summary>
-internal enum BaselineCommand
-{
+internal enum BaselineCommand {
     /// <summary>
     /// Print the usage text and exit
     /// </summary>
@@ -70,15 +69,12 @@ internal enum BaselineCommand
 /// <summary>
 /// Holds the fully parsed command line for a single baseline invocation
 /// </summary>
-/// <remarks>
-/// The surface deliberately mirrors the Cartograph harness so the two programs pack and load the
+/// <remarks>The surface deliberately mirrors the Cartograph harness so the two programs pack and load the
 /// same trees the same way. Options that are meaningful only to the artifact format, such as the
 /// segment grouping or the read strategy, are dropped, and two switches are added: <c>--container</c>
 /// selects which plain .NET storage strategy to profile, and <c>--csv</c> requests the machine
-/// readable summary used to build the comparison table.
-/// </remarks>
-internal sealed class BaselineOptions
-{
+/// readable summary used to build the comparison table.</remarks>
+internal sealed class BaselineOptions {
     /// <summary>
     /// Default upper bound on the size of any individual packed file
     /// </summary>
@@ -109,17 +105,19 @@ internal sealed class BaselineOptions
     /// <summary>
     /// Gets the positional input path
     /// </summary>
-    /// <value>
-    /// A folder for <see cref="BaselineCommand.Pack" /> and <see cref="BaselineCommand.Roundtrip" />,
-    /// a container file for <see cref="BaselineCommand.Load" />, and <see langword="null" /> otherwise.
-    /// </value>
-    public string? InputPath { get; private set; }
+    /// <value>A folder for <see cref="BaselineCommand.Pack" /> and <see cref="BaselineCommand.Roundtrip" />,
+    /// a container file for <see cref="BaselineCommand.Load" />, and <see langword="null" /> otherwise.</value>
+    public string? InputPath {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the path of the container to create
     /// </summary>
     /// <value>The value of <c>--out</c>, or <see langword="null" /> to derive one from the input path.</value>
-    public string? OutputPath { get; private set; }
+    public string? OutputPath {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the include patterns applied to relative paths
@@ -154,17 +152,19 @@ internal sealed class BaselineOptions
     /// <summary>
     /// Gets a value indicating whether reparse points are traversed
     /// </summary>
-    /// <value>
-    /// <see langword="true" /> when symbolic links and junctions are followed; otherwise
-    /// <see langword="false" />, which is the default and avoids cycles.
-    /// </value>
-    public bool FollowLinks { get; private set; }
+    /// <value><see langword="true" /> when symbolic links and junctions are followed; otherwise
+    /// <see langword="false" />, which is the default and avoids cycles.</value>
+    public bool FollowLinks {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the catalog listing is printed
     /// </summary>
     /// <value><see langword="true" /> when <c>--list</c> was supplied.</value>
-    public bool List { get; private set; }
+    public bool List {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the maximum number of catalog rows to print
@@ -176,19 +176,25 @@ internal sealed class BaselineOptions
     /// Gets the directory into which packed files are extracted
     /// </summary>
     /// <value>The value of <c>--extract</c>, or <see langword="null" /> when extraction is not requested.</value>
-    public string? ExtractDirectory { get; private set; }
+    public string? ExtractDirectory {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether informational output is suppressed
     /// </summary>
     /// <value><see langword="true" /> when <c>--quiet</c> was supplied.</value>
-    public bool Quiet { get; private set; }
+    public bool Quiet {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the machine readable CSV summary is emitted
     /// </summary>
     /// <value><see langword="true" /> when <c>--csv</c> was supplied.</value>
-    public bool Csv { get; private set; }
+    public bool Csv {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the container produced by a demo run is deleted afterwards
@@ -209,9 +215,8 @@ internal sealed class BaselineOptions
     /// <param name="options">On success, the parsed options; otherwise <see langword="null" /></param>
     /// <param name="error">On failure, a human readable description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when the command line was understood; otherwise <see langword="false" /></returns>
-    /// <exception cref="System.ArgumentNullException"><paramref name="args" /> is <see langword="null" />.</exception>
-    public static bool TryParse(string[] args, out BaselineOptions? options, out string? error)
-    {
+    /// <exception cref="System.ArgumentNullException"></exception>
+    public static bool TryParse(string[] args, out BaselineOptions? options, out string? error) {
         ArgumentNullException.ThrowIfNull(args);
 
         options = null;
@@ -220,8 +225,7 @@ internal sealed class BaselineOptions
         BaselineOptions parsed = new();
         int index = 0;
 
-        if (args.Length == 0)
-        {
+        if (args.Length == 0) {
             parsed.Command = BaselineCommand.Help;
             options = parsed;
             return true;
@@ -229,8 +233,7 @@ internal sealed class BaselineOptions
 
         string first = args[0];
 
-        switch (first.ToLowerInvariant())
-        {
+        switch (first.ToLowerInvariant()) {
             case "pack":
                 parsed.Command = BaselineCommand.Pack;
                 index = 1;
@@ -267,14 +270,11 @@ internal sealed class BaselineOptions
                 break;
         }
 
-        for (; index < args.Length; index++)
-        {
+        for (; index < args.Length; index++) {
             string arg = args[index];
 
-            if (!arg.StartsWith('-'))
-            {
-                if (parsed.InputPath is not null)
-                {
+            if (!arg.StartsWith('-')) {
+                if (parsed.InputPath is not null) {
                     error = $"Unexpected positional argument '{arg}'; a path was already supplied.";
                     return false;
                 }
@@ -283,12 +283,10 @@ internal sealed class BaselineOptions
                 continue;
             }
 
-            switch (arg.ToLowerInvariant())
-            {
+            switch (arg.ToLowerInvariant()) {
                 case "-o":
                 case "--out":
-                    if (!TryTakeValue(args, ref index, arg, out string? outPath, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? outPath, out error)) {
                         return false;
                     }
 
@@ -296,13 +294,11 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--container":
-                    if (!TryTakeValue(args, ref index, arg, out string? container, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? container, out error)) {
                         return false;
                     }
 
-                    if (!TryParseContainer(container!, out ContainerKind kind))
-                    {
+                    if (!TryParseContainer(container!, out ContainerKind kind)) {
                         error = $"Unknown container '{container}'; expected zip-store, zip-deflate, naive, naive-stream or loose.";
                         return false;
                     }
@@ -311,8 +307,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--include":
-                    if (!TryTakeValue(args, ref index, arg, out string? include, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? include, out error)) {
                         return false;
                     }
 
@@ -320,8 +315,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--exclude":
-                    if (!TryTakeValue(args, ref index, arg, out string? exclude, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? exclude, out error)) {
                         return false;
                     }
 
@@ -329,8 +323,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--max-file-size":
-                    if (!TryTakeSize(args, ref index, arg, out long maxFile, out error))
-                    {
+                    if (!TryTakeSize(args, ref index, arg, out long maxFile, out error)) {
                         return false;
                     }
 
@@ -338,8 +331,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--max-total":
-                    if (!TryTakeSize(args, ref index, arg, out long maxTotal, out error))
-                    {
+                    if (!TryTakeSize(args, ref index, arg, out long maxTotal, out error)) {
                         return false;
                     }
 
@@ -347,8 +339,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--max-files":
-                    if (!TryTakeInt32(args, ref index, arg, out int maxFiles, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int maxFiles, out error)) {
                         return false;
                     }
 
@@ -364,8 +355,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--top":
-                    if (!TryTakeInt32(args, ref index, arg, out int top, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int top, out error)) {
                         return false;
                     }
 
@@ -373,8 +363,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--extract":
-                    if (!TryTakeValue(args, ref index, arg, out string? extract, out error))
-                    {
+                    if (!TryTakeValue(args, ref index, arg, out string? extract, out error)) {
                         return false;
                     }
 
@@ -395,8 +384,7 @@ internal sealed class BaselineOptions
                     break;
 
                 case "--demo-files":
-                    if (!TryTakeInt32(args, ref index, arg, out int demoFiles, out error))
-                    {
+                    if (!TryTakeInt32(args, ref index, arg, out int demoFiles, out error)) {
                         return false;
                     }
 
@@ -415,14 +403,12 @@ internal sealed class BaselineOptions
             }
         }
 
-        if (parsed.Command is BaselineCommand.Pack or BaselineCommand.Roundtrip && parsed.InputPath is null)
-        {
+        if (parsed.Command is BaselineCommand.Pack or BaselineCommand.Roundtrip && parsed.InputPath is null) {
             error = "A root folder is required. Try: dotnet-baseline roundtrip <folder>";
             return false;
         }
 
-        if (parsed.Command == BaselineCommand.Load && parsed.InputPath is null)
-        {
+        if (parsed.Command == BaselineCommand.Load && parsed.InputPath is null) {
             error = "A container path is required. Try: dotnet-baseline load <container>";
             return false;
         }
@@ -434,8 +420,7 @@ internal sealed class BaselineOptions
     /// <summary>
     /// Writes the usage text to the standard output stream
     /// </summary>
-    public static void PrintUsage()
-    {
+    public static void PrintUsage() {
         Console.WriteLine(
             $"""
             dotnet-baseline - pack a folder tree using only .NET primitives and read it back.
@@ -510,10 +495,8 @@ internal sealed class BaselineOptions
     /// <param name="text">Raw container name from the command line</param>
     /// <param name="kind">On success, the matching kind; otherwise <see cref="ContainerKind.NaiveStream" /></param>
     /// <returns><see langword="true" /> when the name was recognised; otherwise <see langword="false" /></returns>
-    private static bool TryParseContainer(string text, out ContainerKind kind)
-    {
-        switch (text.ToLowerInvariant())
-        {
+    private static bool TryParseContainer(string text, out ContainerKind kind) {
+        switch (text.ToLowerInvariant()) {
             case "zip-store":
             case "zipstore":
             case "store":
@@ -554,8 +537,7 @@ internal sealed class BaselineOptions
     /// </summary>
     /// <param name="value">Default size in bytes</param>
     /// <returns>The word <c>unlimited</c> when <paramref name="value" /> is <see cref="long.MaxValue" />; otherwise a compact byte figure</returns>
-    private static string DescribeSizeDefault(long value)
-    {
+    private static string DescribeSizeDefault(long value) {
         return value == long.MaxValue ? "unlimited" : ConsoleReport.Bytes(value);
     }
 
@@ -568,10 +550,8 @@ internal sealed class BaselineOptions
     /// <param name="value">On success, the consumed value; otherwise <see langword="null" /></param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a value was available; otherwise <see langword="false" /></returns>
-    private static bool TryTakeValue(string[] args, ref int index, string option, out string? value, out string? error)
-    {
-        if (index + 1 >= args.Length)
-        {
+    private static bool TryTakeValue(string[] args, ref int index, string option, out string? value, out string? error) {
+        if (index + 1 >= args.Length) {
             value = null;
             error = $"Option '{option}' requires a value.";
             return false;
@@ -592,17 +572,14 @@ internal sealed class BaselineOptions
     /// <param name="value">On success, the parsed value; otherwise zero</param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a positive integer was parsed; otherwise <see langword="false" /></returns>
-    private static bool TryTakeInt32(string[] args, ref int index, string option, out int value, out string? error)
-    {
+    private static bool TryTakeInt32(string[] args, ref int index, string option, out int value, out string? error) {
         value = 0;
 
-        if (!TryTakeValue(args, ref index, option, out string? raw, out error))
-        {
+        if (!TryTakeValue(args, ref index, option, out string? raw, out error)) {
             return false;
         }
 
-        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value <= 0)
-        {
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value <= 0) {
             error = $"Option '{option}' expects a positive integer but received '{raw}'.";
             return false;
         }
@@ -619,12 +596,10 @@ internal sealed class BaselineOptions
     /// <param name="value">On success, the size in bytes; otherwise zero</param>
     /// <param name="error">On failure, a description of the problem; otherwise <see langword="null" /></param>
     /// <returns><see langword="true" /> when a positive size was parsed; otherwise <see langword="false" /></returns>
-    private static bool TryTakeSize(string[] args, ref int index, string option, out long value, out string? error)
-    {
+    private static bool TryTakeSize(string[] args, ref int index, string option, out long value, out string? error) {
         value = 0;
 
-        if (!TryTakeValue(args, ref index, option, out string? raw, out error))
-        {
+        if (!TryTakeValue(args, ref index, option, out string? raw, out error)) {
             return false;
         }
 
@@ -633,25 +608,19 @@ internal sealed class BaselineOptions
 
         if (text.EndsWith("KiB", StringComparison.OrdinalIgnoreCase) ||
             text.EndsWith("MiB", StringComparison.OrdinalIgnoreCase) ||
-            text.EndsWith("GiB", StringComparison.OrdinalIgnoreCase))
-        {
-            multiplier = char.ToUpperInvariant(text[^3]) switch
-            {
+            text.EndsWith("GiB", StringComparison.OrdinalIgnoreCase)) {
+            multiplier = char.ToUpperInvariant(text[^3]) switch {
                 'K' => 1024L,
                 'M' => 1024L * 1024,
                 _ => 1024L * 1024 * 1024,
             };
 
             text = text[..^3];
-        }
-        else if (text.Length > 0)
-        {
+        } else if (text.Length > 0) {
             char suffix = char.ToUpperInvariant(text[^1]);
 
-            if (suffix is 'K' or 'M' or 'G')
-            {
-                multiplier = suffix switch
-                {
+            if (suffix is 'K' or 'M' or 'G') {
+                multiplier = suffix switch {
                     'K' => 1024L,
                     'M' => 1024L * 1024,
                     _ => 1024L * 1024 * 1024,
@@ -661,8 +630,7 @@ internal sealed class BaselineOptions
             }
         }
 
-        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long units) || units <= 0)
-        {
+        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long units) || units <= 0) {
             error = $"Option '{option}' expects a positive size but received '{raw}'.";
             return false;
         }

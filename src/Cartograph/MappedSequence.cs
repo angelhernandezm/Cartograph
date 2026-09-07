@@ -42,30 +42,25 @@ namespace Cartograph;
 /// that does not already exist in the .NET ecosystem: it lets a &gt; 2 GiB file be consumed as one
 /// logical byte sequence without ever copying payload into the managed heap.
 /// </remarks>
-public static class MappedSequence
-{
+public static class MappedSequence {
     /// <summary>Builds a <see cref="ReadOnlySequence{Byte}"/> over the supplied chunks in order.</summary>
     /// <param name="chunks">The mapped chunks, each typically a slice of one mapped window.</param>
     /// <returns>A <see cref="ReadOnlySequence{Byte}"/> spanning all supplied chunks in order.</returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="chunks" /> is <c>null</c>.</exception>
-    public static ReadOnlySequence<byte> Create(IReadOnlyList<ReadOnlyMemory<byte>> chunks)
-    {
+    public static ReadOnlySequence<byte> Create(IReadOnlyList<ReadOnlyMemory<byte>> chunks) {
         ArgumentNullException.ThrowIfNull(chunks);
 
-        if (chunks.Count == 0)
-        {
+        if (chunks.Count == 0) {
             return ReadOnlySequence<byte>.Empty;
         }
 
-        if (chunks.Count == 1)
-        {
+        if (chunks.Count == 1) {
             return new ReadOnlySequence<byte>(chunks[0]);
         }
 
         MappedSequenceSegment first = new(chunks[0]);
         MappedSequenceSegment current = first;
-        for (int i = 1; i < chunks.Count; i++)
-        {
+        for (int i = 1; i < chunks.Count; i++) {
             current = current.Append(chunks[i]);
         }
 

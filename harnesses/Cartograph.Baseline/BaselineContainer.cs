@@ -37,13 +37,10 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Identifies the .NET storage strategy the baseline uses
 /// </summary>
-/// <remarks>
-/// The modes are deliberately ordered from the most idiomatic to the most carefully optimized, so
+/// <remarks>The modes are deliberately ordered from the most idiomatic to the most carefully optimized, so
 /// that a profile run shows both what a developer would write by default and how close plain .NET
-/// can get when someone tries hard.
-/// </remarks>
-internal enum ContainerKind
-{
+/// can get when someone tries hard.</remarks>
+internal enum ContainerKind {
     /// <summary>
     /// A ZIP archive written with compression disabled
     /// </summary>
@@ -82,85 +79,104 @@ internal sealed record SourceFile(string FullPath, string RelativePath, long Len
 /// <summary>
 /// Describes a single file stored in a baseline container
 /// </summary>
-internal sealed class BaselineEntry
-{
+internal sealed class BaselineEntry {
     /// <summary>
     /// Gets the path of the file relative to the packed root, using forward slashes
     /// </summary>
     /// <value>A relative path such as <c>docs/reference/item-0001.md</c>.</value>
-    public required string RelativePath { get; init; }
+    public required string RelativePath {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the length of the file, in bytes
     /// </summary>
     /// <value>The exact byte length of the stored payload.</value>
-    public required long Length { get; init; }
+    public required long Length {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the last write time of the source file, expressed in UTC ticks
     /// </summary>
     /// <value>The tick count of the file's UTC last write time at the moment it was packed.</value>
-    public required long LastWriteUtcTicks { get; init; }
+    public required long LastWriteUtcTicks {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the XxHash3 checksum of the file contents computed at pack time
     /// </summary>
     /// <value>A 64-bit hash used to verify the payload after the container is reopened.</value>
-    public required ulong Checksum { get; init; }
+    public required ulong Checksum {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the byte offset of the payload within the container
     /// </summary>
     /// <value>Meaningful only for the flat container modes; zero otherwise.</value>
-    public long Offset { get; init; }
+    public long Offset {
+        get; init;
+    }
 }
 
 /// <summary>
 /// Summarizes the outcome of a baseline packing run
 /// </summary>
-internal sealed class BaselinePackResult
-{
+internal sealed class BaselinePackResult {
     /// <summary>
     /// Gets the fully qualified path of the container that was written
     /// </summary>
     /// <value>The file the baseline created, or the source root for <see cref="ContainerKind.Loose" />.</value>
-    public required string ContainerPath { get; init; }
+    public required string ContainerPath {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the number of files that were stored
     /// </summary>
     /// <value>One per packed file.</value>
-    public required int FileCount { get; init; }
+    public required int FileCount {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the total number of payload bytes that were stored
     /// </summary>
     /// <value>The sum of the lengths of every packed file, before any compression.</value>
-    public required long PayloadBytes { get; init; }
+    public required long PayloadBytes {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the size of the container on disk, in bytes
     /// </summary>
     /// <value>Zero for <see cref="ContainerKind.Loose" />, which writes no container.</value>
-    public required long ContainerBytes { get; init; }
+    public required long ContainerBytes {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the metrics captured while packing
     /// </summary>
     /// <value>Covers reading the source files and writing the container.</value>
-    public required RunMetrics Metrics { get; init; }
+    public required RunMetrics Metrics {
+        get; init;
+    }
 }
 
 /// <summary>
 /// Provides read access to a packed baseline container
 /// </summary>
-internal abstract class ContainerReader : IDisposable
-{
+internal abstract class ContainerReader : IDisposable {
     /// <summary>
     /// Gets the entries describing every stored file
     /// </summary>
     /// <value>Ordered by relative path, matching the order they were packed in.</value>
-    public abstract IReadOnlyList<BaselineEntry> Entries { get; }
+    public abstract IReadOnlyList<BaselineEntry> Entries {
+        get;
+    }
 
     /// <summary>
     /// Reads the payload of one entry
@@ -185,19 +201,16 @@ internal abstract class ContainerReader : IDisposable
     /// <param name="scratch">Buffer to grow in place</param>
     /// <param name="required">Minimum capacity needed, in bytes</param>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="required" /> exceeds the maximum array length.</exception>
-    protected static void EnsureCapacity(ref byte[] scratch, long required)
-    {
+    protected static void EnsureCapacity(ref byte[] scratch, long required) {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(required, Array.MaxLength);
 
-        if (scratch.Length >= required)
-        {
+        if (scratch.Length >= required) {
             return;
         }
 
         int size = scratch.Length == 0 ? 4096 : scratch.Length;
 
-        while (size < required)
-        {
+        while (size < required) {
             size = size > Array.MaxLength / 2 ? Array.MaxLength : size * 2;
         }
 
@@ -208,19 +221,22 @@ internal abstract class ContainerReader : IDisposable
 /// <summary>
 /// Packs a folder into a container and reads it back using nothing but .NET primitives
 /// </summary>
-internal abstract class BaselineContainer
-{
+internal abstract class BaselineContainer {
     /// <summary>
     /// Gets the display name of the strategy
     /// </summary>
     /// <value>A short label such as <c>zip-store</c>, used in reports and in the CSV label column.</value>
-    public abstract string Name { get; }
+    public abstract string Name {
+        get;
+    }
 
     /// <summary>
     /// Gets the file extension applied to containers this strategy writes
     /// </summary>
     /// <value>An extension including the leading dot, or an empty string when no file is written.</value>
-    public abstract string Extension { get; }
+    public abstract string Extension {
+        get;
+    }
 
     /// <summary>
     /// Writes the discovered files into a new container
@@ -247,8 +263,7 @@ internal abstract class BaselineContainer
     /// </param>
     /// <returns>The requested strategy</returns>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="kind" /> is not a known container kind.</exception>
-    public static BaselineContainer Create(ContainerKind kind, string root) => kind switch
-    {
+    public static BaselineContainer Create(ContainerKind kind, string root) => kind switch {
         ContainerKind.ZipStore => new ZipContainer(store: true),
         ContainerKind.ZipDeflate => new ZipContainer(store: false),
         ContainerKind.Naive => new NaiveContainer(streaming: false),
@@ -265,8 +280,7 @@ internal abstract class BaselineContainer
 /// Kept behaviourally identical to the scan performed by the Cartograph harness, so that both
 /// programs pack exactly the same set of files and the comparison stays meaningful.
 /// </remarks>
-internal static class SourceScanner
-{
+internal static class SourceScanner {
     /// <summary>
     /// Enumerates the source tree and applies the configured filters
     /// </summary>
@@ -281,20 +295,17 @@ internal static class SourceScanner
         BaselineOptions options,
         string root,
         out int skippedTooLarge,
-        out int skippedFiltered)
-    {
+        out int skippedFiltered) {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!Directory.Exists(root))
-        {
+        if (!Directory.Exists(root)) {
             throw new DirectoryNotFoundException($"Root folder '{root}' does not exist.");
         }
 
         skippedTooLarge = 0;
         skippedFiltered = 0;
 
-        EnumerationOptions enumeration = new()
-        {
+        EnumerationOptions enumeration = new() {
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
             ReturnSpecialDirectories = false,
@@ -304,40 +315,32 @@ internal static class SourceScanner
         List<SourceFile> files = [];
         long budget = 0;
 
-        foreach (string path in Directory.EnumerateFiles(root, "*", enumeration))
-        {
+        foreach (string path in Directory.EnumerateFiles(root, "*", enumeration)) {
             string relative = Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
 
-            if (!Matches(options, relative))
-            {
+            if (!Matches(options, relative)) {
                 skippedFiltered++;
                 continue;
             }
 
             FileInfo info;
 
-            try
-            {
+            try {
                 info = new FileInfo(path);
 
-                if (!info.Exists)
-                {
+                if (!info.Exists) {
                     continue;
                 }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
+            } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                 continue;
             }
 
-            if (info.Length > options.MaxFileSize)
-            {
+            if (info.Length > options.MaxFileSize) {
                 skippedTooLarge++;
                 continue;
             }
 
-            if (files.Count >= options.MaxFiles || budget + info.Length > options.MaxTotalBytes)
-            {
+            if (files.Count >= options.MaxFiles || budget + info.Length > options.MaxTotalBytes) {
                 break;
             }
 
@@ -355,31 +358,24 @@ internal static class SourceScanner
     /// <param name="options">Parsed command line supplying the patterns</param>
     /// <param name="relativePath">Path relative to the scanned root, using forward slashes</param>
     /// <returns><see langword="true" /> when the file should be packed; otherwise <see langword="false" /></returns>
-    private static bool Matches(BaselineOptions options, string relativePath)
-    {
-        if (options.Includes.Count > 0)
-        {
+    private static bool Matches(BaselineOptions options, string relativePath) {
+        if (options.Includes.Count > 0) {
             bool included = false;
 
-            foreach (string pattern in options.Includes)
-            {
-                if (FileSystemName.MatchesSimpleExpression(pattern, relativePath, ignoreCase: true))
-                {
+            foreach (string pattern in options.Includes) {
+                if (FileSystemName.MatchesSimpleExpression(pattern, relativePath, ignoreCase: true)) {
                     included = true;
                     break;
                 }
             }
 
-            if (!included)
-            {
+            if (!included) {
                 return false;
             }
         }
 
-        foreach (string pattern in options.Excludes)
-        {
-            if (FileSystemName.MatchesSimpleExpression(pattern, relativePath, ignoreCase: true))
-            {
+        foreach (string pattern in options.Excludes) {
+            if (FileSystemName.MatchesSimpleExpression(pattern, relativePath, ignoreCase: true)) {
                 return false;
             }
         }

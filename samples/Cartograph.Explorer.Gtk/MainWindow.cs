@@ -41,89 +41,121 @@ using Cartograph.Explorer.Core;
 namespace Cartograph.Explorer.GtkApp;
 
 /// <summary>
-/// The explorer's only window, built by composition over a <see cref="Gtk.ApplicationWindow"/>
+/// The explorer's only window, built by composition over a <see cref="Gtk.ApplicationWindow" />
 /// </summary>
-/// <remarks>
-/// <para>
+/// <remarks><para>
 /// The window is composed rather than derived, because subclassing a GObject through the bindings
 /// requires registering a new GType and buys nothing here. Every widget is therefore created and
-/// wired up in <see cref="BuildUi"/>.
+/// wired up in <see cref="BuildUi" />.
 /// </para>
 /// <para>
-/// All artifact behaviour lives in <see cref="ArtifactSession"/>, which this window shares verbatim
+/// All artifact behaviour lives in <see cref="ArtifactSession" />, which this window shares verbatim
 /// with the Windows Forms front end. The two applications consequently differ only in how they draw,
 /// which is the entire point of the split.
-/// </para>
-/// </remarks>
-internal sealed class MainWindow : IDisposable
-{
-    /// <summary>How often, in milliseconds, the peer list and footprint are refreshed.</summary>
+/// </para></remarks>
+internal sealed class MainWindow : IDisposable {
+    /// <summary>
+    /// How often, in milliseconds, the peer list and footprint are refreshed.
+    /// </summary>
     private const uint TelemetryIntervalMs = 2000;
 
-    /// <summary>Short name reported to peers so each instance shows which front end it is running.</summary>
+    /// <summary>
+    /// Short name reported to peers so each instance shows which front end it is running.
+    /// </summary>
     private const string FrontEndName = "GTK";
 
-    /// <summary>The underlying GTK window.</summary>
+    /// <summary>
+    /// The underlying GTK window.
+    /// </summary>
     private readonly Gtk.ApplicationWindow _window;
 
-    /// <summary>Entry holding the path of the artifact to open.</summary>
+    /// <summary>
+    /// Entry holding the path of the artifact to open.
+    /// </summary>
     private readonly Gtk.Entry _artifactPath = Gtk.Entry.New();
 
-    /// <summary>Entry holding the substring used to filter the file list.</summary>
+    /// <summary>
+    /// Entry holding the substring used to filter the file list.
+    /// </summary>
     private readonly Gtk.Entry _filter = Gtk.Entry.New();
 
-    /// <summary>Entry holding the folder that extractions are written into.</summary>
+    /// <summary>
+    /// Entry holding the folder that extractions are written into.
+    /// </summary>
     private readonly Gtk.Entry _destination = Gtk.Entry.New();
 
-    /// <summary>Backing model of the file list, holding one string per visible entry.</summary>
+    /// <summary>
+    /// Backing model of the file list, holding one string per visible entry.
+    /// </summary>
     private readonly Gtk.StringList _model = Gtk.StringList.New([]);
 
-    /// <summary>Selection model exposing the highlighted row.</summary>
+    /// <summary>
+    /// Selection model exposing the highlighted row.
+    /// </summary>
     private readonly Gtk.SingleSelection _selection;
 
-    /// <summary>Label showing the metadata of the selected record.</summary>
+    /// <summary>
+    /// Label showing the metadata of the selected record.
+    /// </summary>
     private readonly Gtk.Label _details = Gtk.Label.New(string.Empty);
 
-    /// <summary>Text view showing a bounded preview of the selected record.</summary>
+    /// <summary>
+    /// Text view showing a bounded preview of the selected record.
+    /// </summary>
     private readonly Gtk.TextView _preview = Gtk.TextView.New();
 
-    /// <summary>Label showing the most recent status message.</summary>
+    /// <summary>
+    /// Label showing the most recent status message.
+    /// </summary>
     private readonly Gtk.Label _status = Gtk.Label.New("No artifact open");
 
-    /// <summary>Label showing the live peer list and this process's memory footprint.</summary>
+    /// <summary>
+    /// Label showing the live peer list and this process's memory footprint.
+    /// </summary>
     private readonly Gtk.Label _peers = Gtk.Label.New(string.Empty);
 
-    /// <summary>Button that verifies the selected record against its stored checksum.</summary>
+    /// <summary>
+    /// Button that verifies the selected record against its stored checksum.
+    /// </summary>
     private readonly Gtk.Button _verifyButton = Gtk.Button.NewWithLabel("Verify");
 
-    /// <summary>Button that extracts the selected record.</summary>
+    /// <summary>
+    /// Button that extracts the selected record.
+    /// </summary>
     private readonly Gtk.Button _extractButton = Gtk.Button.NewWithLabel("Extract");
 
-    /// <summary>Button that extracts every currently visible record.</summary>
+    /// <summary>
+    /// Button that extracts every currently visible record.
+    /// </summary>
     private readonly Gtk.Button _extractAllButton = Gtk.Button.NewWithLabel("Extract all");
 
-    /// <summary>Button that launches another copy of this program on the same artifact.</summary>
+    /// <summary>
+    /// Button that launches another copy of this program on the same artifact.
+    /// </summary>
     private readonly Gtk.Button _peerButton = Gtk.Button.NewWithLabel("New instance");
 
-    /// <summary>The open artifact, or <c>null</c> when no artifact has been opened yet.</summary>
+    /// <summary>
+    /// The open artifact, or <c>null</c> when no artifact has been opened yet.
+    /// </summary>
     private ArtifactSession? _session;
 
-    /// <summary>The entries currently shown in the list, in display order.</summary>
+    /// <summary>
+    /// The entries currently shown in the list, in display order.
+    /// </summary>
     private IReadOnlyList<CatalogEntry> _visible = [];
 
-    /// <summary>Whether this window has already been disposed.</summary>
+    /// <summary>
+    /// Whether this window has already been disposed.
+    /// </summary>
     private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow" /> class
     /// </summary>
     /// <param name="application">The GTK application that owns the window.</param>
-    /// <param name="initialPath">
-    /// Path of an artifact to open immediately, or <c>null</c> to start with an empty window.
-    /// </param>
-    /// <exception cref="System.ArgumentNullException"><paramref name="application" /> is <c>null</c>.</exception>
-    public MainWindow(Gtk.Application application, string? initialPath)
-    {
+    /// <param name="initialPath">Path of an artifact to open immediately, or <c>null</c> to start with an empty window.</param>
+    /// <exception cref="System.ArgumentNullException"></exception>
+    public MainWindow(Gtk.Application application, string? initialPath) {
         ArgumentNullException.ThrowIfNull(application);
 
         _window = Gtk.ApplicationWindow.New(application);
@@ -135,8 +167,7 @@ internal sealed class MainWindow : IDisposable
         // heartbeat files written by unrelated processes and there is nothing to subscribe to.
         _ = GLib.Functions.TimeoutAdd(0, TelemetryIntervalMs, RefreshTelemetry);
 
-        if (!string.IsNullOrWhiteSpace(initialPath))
-        {
+        if (!string.IsNullOrWhiteSpace(initialPath)) {
             _artifactPath.SetText(initialPath);
             OpenArtifact(initialPath);
         }
@@ -150,10 +181,8 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Closes the artifact and releases the mapping held by this window
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 
@@ -165,8 +194,7 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Creates every widget and wires the event handlers
     /// </summary>
-    private void BuildUi()
-    {
+    private void BuildUi() {
         _window.SetTitle("Cartograph Explorer");
         _window.SetDefaultSize(1100, 720);
 
@@ -189,8 +217,7 @@ internal sealed class MainWindow : IDisposable
     /// Builds the top row holding the artifact path, the open action and the peer launcher
     /// </summary>
     /// <returns>The populated toolbar.</returns>
-    private Gtk.Box BuildToolbar()
-    {
+    private Gtk.Box BuildToolbar() {
         Gtk.Box toolbar = Gtk.Box.New(Gtk.Orientation.Horizontal, 6);
 
         Gtk.Label label = Gtk.Label.New("Artifact:");
@@ -215,8 +242,7 @@ internal sealed class MainWindow : IDisposable
     /// Builds the split body: the filterable file list on the left, the record pane on the right
     /// </summary>
     /// <returns>The populated body widget.</returns>
-    private Gtk.Widget BuildBody()
-    {
+    private Gtk.Widget BuildBody() {
         Gtk.Paned split = Gtk.Paned.New(Gtk.Orientation.Horizontal);
         split.SetVexpand(true);
         split.SetStartChild(BuildFileList());
@@ -229,8 +255,7 @@ internal sealed class MainWindow : IDisposable
     /// Builds the filter box and the list of catalogued files
     /// </summary>
     /// <returns>The populated file-list column.</returns>
-    private Gtk.Widget BuildFileList()
-    {
+    private Gtk.Widget BuildFileList() {
         Gtk.Box column = Gtk.Box.New(Gtk.Orientation.Vertical, 6);
         column.SetSizeRequest(420, -1);
 
@@ -239,19 +264,16 @@ internal sealed class MainWindow : IDisposable
 
         Gtk.SignalListItemFactory factory = Gtk.SignalListItemFactory.New();
 
-        factory.OnSetup += (_, args) =>
-        {
+        factory.OnSetup += (_, args) => {
             Gtk.Label cell = Gtk.Label.New(string.Empty);
             cell.SetXalign(0);
             ((Gtk.ListItem)args.Object).SetChild(cell);
         };
 
-        factory.OnBind += (_, args) =>
-        {
+        factory.OnBind += (_, args) => {
             Gtk.ListItem item = (Gtk.ListItem)args.Object;
 
-            if (item.GetChild() is Gtk.Label cell)
-            {
+            if (item.GetChild() is Gtk.Label cell) {
                 uint position = item.GetPosition();
                 cell.SetText(position < _visible.Count ? _visible[(int)position].RelativePath : string.Empty);
             }
@@ -274,8 +296,7 @@ internal sealed class MainWindow : IDisposable
     /// Builds the right-hand pane holding record metadata, the preview and the record actions
     /// </summary>
     /// <returns>The populated record pane.</returns>
-    private Gtk.Widget BuildRecordPane()
-    {
+    private Gtk.Widget BuildRecordPane() {
         Gtk.Box pane = Gtk.Box.New(Gtk.Orientation.Vertical, 6);
         pane.SetHexpand(true);
 
@@ -316,8 +337,7 @@ internal sealed class MainWindow : IDisposable
     /// Builds the bottom status strip
     /// </summary>
     /// <returns>The populated status bar.</returns>
-    private Gtk.Box BuildStatusBar()
-    {
+    private Gtk.Box BuildStatusBar() {
         Gtk.Box bar = Gtk.Box.New(Gtk.Orientation.Horizontal, 12);
 
         _status.SetXalign(0);
@@ -334,16 +354,13 @@ internal sealed class MainWindow : IDisposable
     /// Opens an artifact, replacing whatever this window currently holds
     /// </summary>
     /// <param name="path">Path of the artifact to open.</param>
-    private void OpenArtifact(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+    private void OpenArtifact(string? path) {
+        if (string.IsNullOrWhiteSpace(path)) {
             SetStatus("Enter the path of an artifact to open.");
             return;
         }
 
-        try
-        {
+        try {
             ArtifactSession session = ArtifactSession.Open(path.Trim(), FrontEndName);
 
             _session?.Dispose();
@@ -365,13 +382,9 @@ internal sealed class MainWindow : IDisposable
                 DisplayFormat.Count(session.SegmentCount),
                 DisplayFormat.Bytes(session.SizeOnDisk),
                 DisplayFormat.Duration(session.OpenElapsed)));
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or UnauthorizedAccessException) {
             SetStatus($"Could not open the artifact: {ex.Message}");
-        }
-        catch (Cartograph.Format.CartographFormatException ex)
-        {
+        } catch (Cartograph.Format.CartographFormatException ex) {
             SetStatus($"Not a valid Cartograph artifact: {ex.Message}");
         }
 
@@ -381,18 +394,15 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Re-applies the filter text to the catalogue and rebuilds the list model
     /// </summary>
-    private void ApplyFilter()
-    {
-        if (_session is null)
-        {
+    private void ApplyFilter() {
+        if (_session is null) {
             return;
         }
 
         _visible = _session.Filter(_filter.GetText());
 
         string[] rows = new string[_visible.Count];
-        for (int i = 0; i < rows.Length; i++)
-        {
+        for (int i = 0; i < rows.Length; i++) {
             rows[i] = _visible[i].RelativePath;
         }
 
@@ -405,12 +415,10 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Refreshes the metadata and preview panes to match the highlighted row
     /// </summary>
-    private void UpdateSelection()
-    {
+    private void UpdateSelection() {
         CatalogEntry? entry = SelectedEntry();
 
-        if (_session is null || entry is null)
-        {
+        if (_session is null || entry is null) {
             _details.SetText("Open an artifact and select a file to preview it.");
             _preview.GetBuffer().SetText(string.Empty, -1);
             UpdateCommandState();
@@ -428,14 +436,12 @@ internal sealed class MainWindow : IDisposable
             DisplayFormat.Timestamp(entry.LastWriteUtc),
             entry.Checksum == 0 ? "not computed" : DisplayFormat.Checksum(entry.Checksum)));
 
-        try
-        {
+        try {
             RecordPreview preview = _session.Preview(entry);
 
             StringBuilder text = new(preview.Content.ReplaceLineEndings("\n"));
 
-            if (preview.IsTruncated)
-            {
+            if (preview.IsTruncated) {
                 text.Append(string.Format(
                     CultureInfo.InvariantCulture,
                     "\n\n--- showing the first {0} of {1} ---",
@@ -444,9 +450,7 @@ internal sealed class MainWindow : IDisposable
             }
 
             _preview.GetBuffer().SetText(text.ToString(), -1);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is IOException or InvalidOperationException) {
             _preview.GetBuffer().SetText($"Could not read this record: {ex.Message}", -1);
         }
 
@@ -456,17 +460,14 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Verifies the selected record against the checksum recorded when the artifact was packed
     /// </summary>
-    private void VerifySelected()
-    {
+    private void VerifySelected() {
         CatalogEntry? entry = SelectedEntry();
 
-        if (_session is null || entry is null)
-        {
+        if (_session is null || entry is null) {
             return;
         }
 
-        try
-        {
+        try {
             CatalogVerification result = _session.Verify(entry);
 
             SetStatus(result.HasExpectedChecksum
@@ -485,9 +486,7 @@ internal sealed class MainWindow : IDisposable
                     DisplayFormat.Bytes(result.BytesRead),
                     DisplayFormat.Duration(result.Elapsed),
                     DisplayFormat.Rate(result.BytesRead, result.Elapsed)));
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException or Cartograph.Format.CartographFormatException)
-        {
+        } catch (Exception ex) when (ex is IOException or InvalidOperationException or Cartograph.Format.CartographFormatException) {
             SetStatus($"Verification failed: {ex.Message}");
         }
     }
@@ -495,30 +494,25 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Extracts the selected record into the destination folder
     /// </summary>
-    private void ExtractSelected()
-    {
+    private void ExtractSelected() {
         CatalogEntry? entry = SelectedEntry();
 
-        if (_session is null || entry is null)
-        {
+        if (_session is null || entry is null) {
             return;
         }
 
         string root = _destination.GetText();
 
-        if (string.IsNullOrWhiteSpace(root))
-        {
+        if (string.IsNullOrWhiteSpace(root)) {
             SetStatus("Choose a destination folder first.");
             return;
         }
 
-        try
-        {
+        try {
             string target = Path.Combine(root, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar));
             string? parent = Path.GetDirectoryName(target);
 
-            if (!string.IsNullOrEmpty(parent))
-            {
+            if (!string.IsNullOrEmpty(parent)) {
                 Directory.CreateDirectory(parent);
             }
 
@@ -530,9 +524,7 @@ internal sealed class MainWindow : IDisposable
                 entry.Name,
                 DisplayFormat.Bytes(written),
                 target));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) {
             SetStatus($"Extraction failed: {ex.Message}");
         }
     }
@@ -540,23 +532,19 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Extracts every currently visible record into the destination folder
     /// </summary>
-    private void ExtractAllVisible()
-    {
-        if (_session is null || _visible.Count == 0)
-        {
+    private void ExtractAllVisible() {
+        if (_session is null || _visible.Count == 0) {
             return;
         }
 
         string root = _destination.GetText();
 
-        if (string.IsNullOrWhiteSpace(root))
-        {
+        if (string.IsNullOrWhiteSpace(root)) {
             SetStatus("Choose a destination folder first.");
             return;
         }
 
-        try
-        {
+        try {
             long written = _session.ExtractAll(_visible, root);
 
             SetStatus(string.Format(
@@ -565,9 +553,7 @@ internal sealed class MainWindow : IDisposable
                 DisplayFormat.Count(_visible.Count),
                 DisplayFormat.Bytes(written),
                 root));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) {
             SetStatus($"Extraction failed: {ex.Message}");
         }
     }
@@ -579,36 +565,29 @@ internal sealed class MainWindow : IDisposable
     /// This is what makes the shared mapping observable: the new process maps the very same
     /// read-only file, and both windows then list each other in the peer strip.
     /// </remarks>
-    private void LaunchPeerInstance()
-    {
-        if (_session is null)
-        {
+    private void LaunchPeerInstance() {
+        if (_session is null) {
             return;
         }
 
-        try
-        {
+        try {
             // Environment.ProcessPath is the apphost, which already knows how to locate the runtime,
             // so this works for a framework-dependent and a self-contained publish alike.
             string? executable = Environment.ProcessPath;
 
-            if (string.IsNullOrEmpty(executable))
-            {
+            if (string.IsNullOrEmpty(executable)) {
                 SetStatus("The path of the running executable is unavailable.");
                 return;
             }
 
-            using Process? started = Process.Start(new ProcessStartInfo(executable, [_session.Path])
-            {
+            using Process? started = Process.Start(new ProcessStartInfo(executable, [_session.Path]) {
                 UseShellExecute = false,
             });
 
             SetStatus(started is null
                 ? "The sibling instance could not be started."
                 : $"Started a sibling instance (pid {started.Id}) on the same artifact.");
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
-        {
+        } catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) {
             SetStatus($"Could not start another instance: {ex.Message}");
         }
     }
@@ -620,21 +599,17 @@ internal sealed class MainWindow : IDisposable
     /// Always <see langword="true" />, so that GLib keeps the timer registered for the lifetime of
     /// the window.
     /// </returns>
-    private bool RefreshTelemetry()
-    {
-        if (_disposed)
-        {
+    private bool RefreshTelemetry() {
+        if (_disposed) {
             return false;
         }
 
-        if (_session is null)
-        {
+        if (_session is null) {
             _peers.SetText(string.Empty);
             return true;
         }
 
-        try
-        {
+        try {
             IReadOnlyList<PeerInstance> peers = _session.RefreshPeers();
             ProcessFootprint footprint = _session.Footprint;
 
@@ -642,19 +617,16 @@ internal sealed class MainWindow : IDisposable
 
             text.Append(CultureInfo.InvariantCulture, $"{peers.Count} instance(s) sharing this artifact: ");
 
-            for (int i = 0; i < peers.Count; i++)
-            {
+            for (int i = 0; i < peers.Count; i++) {
                 PeerInstance peer = peers[i];
 
-                if (i > 0)
-                {
+                if (i > 0) {
                     text.Append(", ");
                 }
 
                 text.Append(CultureInfo.InvariantCulture, $"{peer.FrontEnd} pid {peer.ProcessId}");
 
-                if (peer.IsSelf)
-                {
+                if (peer.IsSelf) {
                     text.Append(" (this one)");
                 }
             }
@@ -664,9 +636,7 @@ internal sealed class MainWindow : IDisposable
             text.Append(CultureInfo.InvariantCulture, $", artifact read {DisplayFormat.Bytes(footprint.ArtifactBytesTouched)}");
 
             _peers.SetText(text.ToString());
-        }
-        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
-        {
+        } catch (Exception ex) when (ex is IOException or ObjectDisposedException) {
             // Presence information is advisory, so a transient failure must never disturb the user.
             _peers.SetText(string.Empty);
         }
@@ -678,8 +648,7 @@ internal sealed class MainWindow : IDisposable
     /// Returns the entry backing the highlighted row
     /// </summary>
     /// <returns>The selected entry, or <c>null</c> when nothing is selected.</returns>
-    private CatalogEntry? SelectedEntry()
-    {
+    private CatalogEntry? SelectedEntry() {
         uint selected = _selection.GetSelected();
 
         return selected != Gtk.Constants.INVALID_LIST_POSITION && selected < _visible.Count
@@ -690,8 +659,7 @@ internal sealed class MainWindow : IDisposable
     /// <summary>
     /// Enables or disables the record actions to match the current selection
     /// </summary>
-    private void UpdateCommandState()
-    {
+    private void UpdateCommandState() {
         bool hasArtifact = _session is not null;
         bool hasSelection = hasArtifact && SelectedEntry() is not null;
 

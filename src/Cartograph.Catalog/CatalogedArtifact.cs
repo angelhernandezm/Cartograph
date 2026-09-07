@@ -50,8 +50,7 @@ public readonly record struct CatalogVerification(
     long BytesRead,
     ulong ComputedChecksum,
     ulong ExpectedChecksum,
-    TimeSpan Elapsed)
-{
+    TimeSpan Elapsed) {
     /// <summary>
     /// Gets a value indicating whether a whole-file checksum was available to compare against
     /// </summary>
@@ -86,8 +85,7 @@ public readonly record struct CatalogVerification(
 /// Instances are safe for concurrent reads from multiple threads.
 /// </para>
 /// </remarks>
-public sealed class CatalogedArtifact : IDisposable
-{
+public sealed class CatalogedArtifact : IDisposable {
     /// <summary>
     /// Size of the buffer used when streaming a record into a destination stream
     /// </summary>
@@ -114,8 +112,7 @@ public sealed class CatalogedArtifact : IDisposable
     /// <param name="artifact">The opened artifact, whose lifetime this instance takes over</param>
     /// <param name="path">Fully qualified path the artifact was opened from</param>
     /// <param name="catalog">The catalog recovered from record zero</param>
-    private CatalogedArtifact(Artifact artifact, string path, FileCatalog catalog)
-    {
+    private CatalogedArtifact(Artifact artifact, string path, FileCatalog catalog) {
         _artifact = artifact;
         Path = path;
         Catalog = catalog;
@@ -123,8 +120,7 @@ public sealed class CatalogedArtifact : IDisposable
 
         _byPath = new Dictionary<string, CatalogEntry>(catalog.Entries.Count, StringComparer.Ordinal);
 
-        foreach (CatalogEntry entry in catalog.Entries)
-        {
+        foreach (CatalogEntry entry in catalog.Entries) {
             // A catalog is written from a directory walk, so duplicate paths should be impossible.
             // Tolerate one anyway rather than throwing while opening a viewer: the first wins.
             _byPath.TryAdd(entry.RelativePath, entry);
@@ -135,19 +131,25 @@ public sealed class CatalogedArtifact : IDisposable
     /// Gets the fully qualified path the artifact was opened from
     /// </summary>
     /// <value>The path passed to <see cref="Open(string, ArtifactOpenOptions)" />, fully qualified.</value>
-    public string Path { get; }
+    public string Path {
+        get;
+    }
 
     /// <summary>
     /// Gets the catalog recovered from record zero of the artifact
     /// </summary>
     /// <value>The manifest describing every packed file.</value>
-    public FileCatalog Catalog { get; }
+    public FileCatalog Catalog {
+        get;
+    }
 
     /// <summary>
     /// Gets the size of the artifact file on disk, in bytes
     /// </summary>
     /// <value>Includes the header, record directories, alignment padding and the manifest.</value>
-    public long SizeOnDisk { get; }
+    public long SizeOnDisk {
+        get;
+    }
 
     /// <summary>
     /// Gets the entries of the catalog, ordered as they were written
@@ -171,23 +173,19 @@ public sealed class CatalogedArtifact : IDisposable
     /// <exception cref="System.IO.FileNotFoundException">No file exists at <paramref name="path" />.</exception>
     /// <exception cref="System.IO.InvalidDataException">The artifact holds no catalog in record zero.</exception>
     /// <exception cref="Cartograph.Format.CartographFormatException">The file is not a valid Cartograph artifact.</exception>
-    public static CatalogedArtifact Open(string path, ArtifactOpenOptions? options = null)
-    {
+    public static CatalogedArtifact Open(string path, ArtifactOpenOptions? options = null) {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
         string full = System.IO.Path.GetFullPath(path);
 
-        if (!File.Exists(full))
-        {
+        if (!File.Exists(full)) {
             throw new FileNotFoundException($"Artifact '{full}' does not exist.", full);
         }
 
         Artifact artifact = Artifact.Open(full, options);
 
-        try
-        {
-            if (artifact.Segments.Count == 0 || artifact.Segments[0].RecordCount == 0)
-            {
+        try {
+            if (artifact.Segments.Count == 0 || artifact.Segments[0].RecordCount == 0) {
                 throw new InvalidDataException(
                     $"Artifact '{full}' has no record 0, so it cannot carry a file catalog.");
             }
@@ -196,9 +194,7 @@ public sealed class CatalogedArtifact : IDisposable
             FileCatalog catalog = FileCatalog.Deserialize(record.Sequence);
 
             return new CatalogedArtifact(artifact, full, catalog);
-        }
-        catch
-        {
+        } catch {
             artifact.Dispose();
             throw;
         }
@@ -210,8 +206,7 @@ public sealed class CatalogedArtifact : IDisposable
     /// <param name="relativePath">Path relative to the packed root, using forward slashes</param>
     /// <returns>The matching entry, or <see langword="null" /> when the artifact holds no such file</returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="relativePath" /> is <see langword="null" />.</exception>
-    public CatalogEntry? Find(string relativePath)
-    {
+    public CatalogEntry? Find(string relativePath) {
         ArgumentNullException.ThrowIfNull(relativePath);
 
         return _byPath.GetValueOrDefault(relativePath);
@@ -229,18 +224,15 @@ public sealed class CatalogedArtifact : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="onChunk" /> is <see langword="null" />.</exception>
     /// <exception cref="System.ObjectDisposedException">The artifact has already been disposed.</exception>
     /// <exception cref="Cartograph.Format.CartographFormatException">A record failed its checksum check.</exception>
-    public void ForEachChunk(CatalogEntry entry, ReadOnlySpanAction<byte, int> onChunk)
-    {
+    public void ForEachChunk(CatalogEntry entry, ReadOnlySpanAction<byte, int> onChunk) {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(onChunk);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        for (int i = 0; i < entry.RecordCount; i++)
-        {
+        for (int i = 0; i < entry.RecordCount; i++) {
             using RecordLease record = _artifact.ReadRecord(entry.GlobalIndex + i);
 
-            foreach (ReadOnlyMemory<byte> memory in record.Sequence)
-            {
+            foreach (ReadOnlyMemory<byte> memory in record.Sequence) {
                 onChunk(memory.Span, i);
             }
         }
@@ -256,20 +248,17 @@ public sealed class CatalogedArtifact : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="destination" /> is <see langword="null" />.</exception>
     /// <exception cref="System.ObjectDisposedException">The artifact has already been disposed.</exception>
     /// <exception cref="Cartograph.Format.CartographFormatException">A record failed its checksum check.</exception>
-    public long CopyTo(CatalogEntry entry, Stream destination)
-    {
+    public long CopyTo(CatalogEntry entry, Stream destination) {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(destination);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         long written = 0;
 
-        for (int i = 0; i < entry.RecordCount; i++)
-        {
+        for (int i = 0; i < entry.RecordCount; i++) {
             using RecordLease record = _artifact.ReadRecord(entry.GlobalIndex + i);
 
-            foreach (ReadOnlyMemory<byte> memory in record.Sequence)
-            {
+            foreach (ReadOnlyMemory<byte> memory in record.Sequence) {
                 // Writing the mapped memory straight through keeps the copy at one hop: mapped page
                 // to file-system cache, with nothing proportional to the payload on the managed heap.
                 destination.Write(memory.Span);
@@ -290,16 +279,14 @@ public sealed class CatalogedArtifact : IDisposable
     /// <exception cref="System.ArgumentException"><paramref name="destinationPath" /> is <see langword="null" /> or empty.</exception>
     /// <exception cref="System.ObjectDisposedException">The artifact has already been disposed.</exception>
     /// <exception cref="System.IO.IOException">The destination could not be written.</exception>
-    public long ExtractTo(CatalogEntry entry, string destinationPath)
-    {
+    public long ExtractTo(CatalogEntry entry, string destinationPath) {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentException.ThrowIfNullOrEmpty(destinationPath);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         string? directory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(destinationPath));
 
-        if (!string.IsNullOrEmpty(directory))
-        {
+        if (!string.IsNullOrEmpty(directory)) {
             System.IO.Directory.CreateDirectory(directory);
         }
 
@@ -334,35 +321,30 @@ public sealed class CatalogedArtifact : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="entry" /> is <see langword="null" />.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="maxBytes" /> is negative.</exception>
     /// <exception cref="System.ObjectDisposedException">The artifact has already been disposed.</exception>
-    public byte[] ReadPrefix(CatalogEntry entry, int maxBytes)
-    {
+    public byte[] ReadPrefix(CatalogEntry entry, int maxBytes) {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentOutOfRangeException.ThrowIfNegative(maxBytes);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         int wanted = (int)Math.Min(maxBytes, entry.Length);
 
-        if (wanted == 0)
-        {
+        if (wanted == 0) {
             return [];
         }
 
         byte[] buffer = new byte[wanted];
         int filled = 0;
 
-        for (int i = 0; i < entry.RecordCount && filled < wanted; i++)
-        {
+        for (int i = 0; i < entry.RecordCount && filled < wanted; i++) {
             using RecordLease record = _artifact.ReadRecord(entry.GlobalIndex + i);
 
-            foreach (ReadOnlyMemory<byte> memory in record.Sequence)
-            {
+            foreach (ReadOnlyMemory<byte> memory in record.Sequence) {
                 int take = Math.Min(memory.Length, wanted - filled);
 
                 memory.Span[..take].CopyTo(buffer.AsSpan(filled));
                 filled += take;
 
-                if (filled == wanted)
-                {
+                if (filled == wanted) {
                     break;
                 }
             }
@@ -388,8 +370,7 @@ public sealed class CatalogedArtifact : IDisposable
     public CatalogVerification Verify(
         CatalogEntry entry,
         IProgress<long>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(entry);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -397,14 +378,12 @@ public sealed class CatalogedArtifact : IDisposable
         XxHash3 hasher = new();
         long read = 0;
 
-        for (int i = 0; i < entry.RecordCount; i++)
-        {
+        for (int i = 0; i < entry.RecordCount; i++) {
             cancellationToken.ThrowIfCancellationRequested();
 
             using RecordLease record = _artifact.ReadRecord(entry.GlobalIndex + i);
 
-            foreach (ReadOnlyMemory<byte> memory in record.Sequence)
-            {
+            foreach (ReadOnlyMemory<byte> memory in record.Sequence) {
                 hasher.Append(memory.Span);
                 read += memory.Length;
             }
@@ -423,10 +402,8 @@ public sealed class CatalogedArtifact : IDisposable
     /// <summary>
     /// Releases the mapping and the underlying file handle
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 

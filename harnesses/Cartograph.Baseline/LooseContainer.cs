@@ -37,8 +37,8 @@ namespace Cartograph.Baseline;
 /// <summary>
 /// Treats the source folder itself as the container, packing nothing and reading each file in place
 /// </summary>
-/// <remarks>
-/// <para>
+/// <param name="root">Fully qualified path of the source folder that acts as the container</param>
+/// <remarks><para>
 /// This mode exists to mark the two extremes of the comparison. Packing writes no container at all,
 /// so its cost is essentially zero and it will win any pack-time race against a mode that actually
 /// assembles a file. Reading, by contrast, uses the most idiomatic call a developer could reach for,
@@ -50,11 +50,8 @@ namespace Cartograph.Baseline;
 /// Because nothing is written, there is no place to record a checksum, so entries carry a checksum
 /// of zero and verification falls back to comparing the observed length against the length seen when
 /// the tree was scanned.
-/// </para>
-/// </remarks>
-/// <param name="root">Fully qualified path of the source folder that acts as the container</param>
-internal sealed class LooseContainer(string root) : BaselineContainer
-{
+/// </para></remarks>
+internal sealed class LooseContainer(string root) : BaselineContainer {
     /// <summary>
     /// Fully qualified path of the source folder that acts as the container
     /// </summary>
@@ -68,8 +65,7 @@ internal sealed class LooseContainer(string root) : BaselineContainer
 
     /// <inheritdoc />
     /// <exception cref="System.ArgumentNullException"><paramref name="files" /> is <see langword="null" />.</exception>
-    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files)
-    {
+    public override BaselinePackResult Pack(string path, IReadOnlyList<SourceFile> files) {
         ArgumentNullException.ThrowIfNull(files);
 
         RunMetrics.Scope scope = RunMetrics.Measure("pack");
@@ -78,15 +74,13 @@ internal sealed class LooseContainer(string root) : BaselineContainer
 
         // There is nothing to write. The only work is to total the payload that was already measured
         // during the scan, so this loop touches no file contents and moves no bytes to disk.
-        foreach (SourceFile file in files)
-        {
+        foreach (SourceFile file in files) {
             payloadBytes += file.Length;
         }
 
         RunMetrics metrics = scope.Stop(payloadBytes);
 
-        return new BaselinePackResult
-        {
+        return new BaselinePackResult {
             ContainerPath = _root,
             FileCount = files.Count,
             PayloadBytes = payloadBytes,
@@ -97,17 +91,14 @@ internal sealed class LooseContainer(string root) : BaselineContainer
 
     /// <inheritdoc />
     /// <exception cref="System.IO.DirectoryNotFoundException">The source folder does not exist.</exception>
-    public override ContainerReader Open(string path, out RunMetrics metrics)
-    {
+    public override ContainerReader Open(string path, out RunMetrics metrics) {
         RunMetrics.Scope scope = RunMetrics.Measure("open");
 
-        if (!Directory.Exists(_root))
-        {
+        if (!Directory.Exists(_root)) {
             throw new DirectoryNotFoundException($"Source folder '{_root}' does not exist.");
         }
 
-        EnumerationOptions enumeration = new()
-        {
+        EnumerationOptions enumeration = new() {
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
             ReturnSpecialDirectories = false,
@@ -118,23 +109,18 @@ internal sealed class LooseContainer(string root) : BaselineContainer
 
         // Opening is deliberately cheap: enumerate the tree and record each file's length. No file
         // contents are read here, which is the whole reason this mode looks fast to open.
-        foreach (string file in Directory.EnumerateFiles(_root, "*", enumeration))
-        {
+        foreach (string file in Directory.EnumerateFiles(_root, "*", enumeration)) {
             string relative = Path.GetRelativePath(_root, file).Replace(Path.DirectorySeparatorChar, '/');
 
             long length;
 
-            try
-            {
+            try {
                 length = new FileInfo(file).Length;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
+            } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                 continue;
             }
 
-            entries.Add(new BaselineEntry
-            {
+            entries.Add(new BaselineEntry {
                 RelativePath = relative,
                 Length = length,
                 LastWriteUtcTicks = 0,
@@ -155,8 +141,7 @@ internal sealed class LooseContainer(string root) : BaselineContainer
     /// </summary>
     /// <param name="root">Fully qualified path of the source folder</param>
     /// <param name="entries">Entries describing the discovered files, ordered by relative path</param>
-    private sealed class LooseReader(string root, List<BaselineEntry> entries) : ContainerReader
-    {
+    private sealed class LooseReader(string root, List<BaselineEntry> entries) : ContainerReader {
         /// <summary>
         /// Fully qualified path of the source folder the reader reads from
         /// </summary>
@@ -166,8 +151,7 @@ internal sealed class LooseContainer(string root) : BaselineContainer
         public override IReadOnlyList<BaselineEntry> Entries { get; } = entries;
 
         /// <inheritdoc />
-        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch)
-        {
+        public override ReadOnlyMemory<byte> Read(int index, ref byte[] scratch) {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Entries.Count);
 
@@ -180,8 +164,7 @@ internal sealed class LooseContainer(string root) : BaselineContainer
         }
 
         /// <inheritdoc />
-        public override void Dispose()
-        {
+        public override void Dispose() {
             // Nothing to release: no handle is held open between reads.
         }
     }

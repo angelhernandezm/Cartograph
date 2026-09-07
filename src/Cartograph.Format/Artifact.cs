@@ -52,8 +52,7 @@ namespace Cartograph.Format;
 /// performing an out-of-bounds read.
 /// </para>
 /// </remarks>
-public sealed class Artifact : IDisposable
-{
+public sealed class Artifact : IDisposable {
     /// <summary>The backing chunk source used to read record payloads.</summary>
     private readonly IChunkSource _source;
 
@@ -71,8 +70,7 @@ public sealed class Artifact : IDisposable
     /// <param name="sourceKind">The chunk source strategy that was selected when opening.</param>
     /// <param name="segments">The ordered list of live segments parsed from the manifest.</param>
     /// <param name="ownsSource">Whether disposing this artifact should also dispose <paramref name="source"/>.</param>
-    private Artifact(IChunkSource source, ArtifactHeader header, ChunkSourceKind sourceKind, IReadOnlyList<ArtifactSegment> segments, bool ownsSource)
-    {
+    private Artifact(IChunkSource source, ArtifactHeader header, ChunkSourceKind sourceKind, IReadOnlyList<ArtifactSegment> segments, bool ownsSource) {
         _source = source;
         _ownsSource = ownsSource;
         Header = header;
@@ -82,25 +80,28 @@ public sealed class Artifact : IDisposable
 
     /// <summary>The validated file header.</summary>
     /// <value>The validated file header.</value>
-    public ArtifactHeader Header { get; }
+    public ArtifactHeader Header {
+        get;
+    }
 
     /// <summary>The chunk source strategy in use.</summary>
     /// <value>The chunk source strategy in use.</value>
-    public ChunkSourceKind SourceKind { get; }
+    public ChunkSourceKind SourceKind {
+        get;
+    }
 
     /// <summary>The live segments in the artifact, in manifest order.</summary>
     /// <value>The live segments in the artifact, in manifest order.</value>
-    public IReadOnlyList<ArtifactSegment> Segments { get; }
+    public IReadOnlyList<ArtifactSegment> Segments {
+        get;
+    }
 
     /// <summary>The total number of records across all live segments.</summary>
     /// <value>The total number of records across all live segments.</value>
-    public long RecordCount
-    {
-        get
-        {
+    public long RecordCount {
+        get {
             long total = 0;
-            foreach (ArtifactSegment segment in Segments)
-            {
+            foreach (ArtifactSegment segment in Segments) {
                 total += segment.RecordCount;
             }
 
@@ -115,8 +116,7 @@ public sealed class Artifact : IDisposable
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="CartographFormatException">The file is not a valid, self-consistent artifact (bad magic, wrong version,
     /// endianness mismatch, header checksum failure, truncation, manifest corruption, or segment/record bounds violation).</exception>
-    public static Artifact Open(string path, ArtifactOpenOptions? options = null)
-    {
+    public static Artifact Open(string path, ArtifactOpenOptions? options = null) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         options ??= ArtifactOpenOptions.Default;
         return Open(CreateSource(path, options), options, ownsSource: true);
@@ -147,34 +147,27 @@ public sealed class Artifact : IDisposable
     /// <exception cref="System.ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
     /// <exception cref="CartographFormatException">The bytes are not a valid, self-consistent artifact (bad magic, wrong version,
     /// endianness mismatch, header checksum failure, truncation, manifest corruption, or segment/record bounds violation).</exception>
-    public static Artifact Open(IChunkSource source, ArtifactOpenOptions? options = null, bool ownsSource = true)
-    {
+    public static Artifact Open(IChunkSource source, ArtifactOpenOptions? options = null, bool ownsSource = true) {
         ArgumentNullException.ThrowIfNull(source);
         options ??= ArtifactOpenOptions.Default;
 
-        try
-        {
+        try {
             long sourceLength = source.Length;
             ArtifactHeader header = ReadHeader(source, sourceLength);
             SegmentManifest manifest = SegmentManifest.Read(ReadManifestBytes(source, header, sourceLength));
 
             List<ArtifactSegment> segments = [];
-            foreach (SegmentDescriptor descriptor in manifest.Segments)
-            {
-                if (!descriptor.IsLive)
-                {
+            foreach (SegmentDescriptor descriptor in manifest.Segments) {
+                if (!descriptor.IsLive) {
                     continue;
                 }
 
                 ValidateSegment(descriptor, sourceLength);
                 (int count, int directorySize) = DirectoryGeometry(descriptor);
                 RecordDirectory directory;
-                if (count == 0)
-                {
+                if (count == 0) {
                     directory = EmptyDirectory();
-                }
-                else
-                {
+                } else {
                     using ChunkLease chunk = source.Read((long)descriptor.DirectoryOffset, directorySize);
                     directory = ParseDirectory(chunk.Sequence, descriptor, count, directorySize);
                 }
@@ -183,11 +176,8 @@ public sealed class Artifact : IDisposable
             }
 
             return new Artifact(source, header, DetermineSourceKind(source), segments, ownsSource);
-        }
-        catch
-        {
-            if (ownsSource)
-            {
+        } catch {
+            if (ownsSource) {
                 source.Dispose();
             }
 
@@ -203,8 +193,7 @@ public sealed class Artifact : IDisposable
     /// <exception cref="System.ArgumentException"><paramref name="path"/> is <c>null</c> or empty.</exception>
     /// <exception cref="CartographFormatException">The file is not a valid, self-consistent artifact.</exception>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken"/>.</exception>
-    public static ValueTask<Artifact> OpenAsync(string path, ArtifactOpenOptions? options = null, CancellationToken cancellationToken = default)
-    {
+    public static ValueTask<Artifact> OpenAsync(string path, ArtifactOpenOptions? options = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         options ??= ArtifactOpenOptions.Default;
         return OpenAsync(CreateSource(path, options), options, ownsSource: true, cancellationToken);
@@ -231,35 +220,28 @@ public sealed class Artifact : IDisposable
         IChunkSource source,
         ArtifactOpenOptions? options = null,
         bool ownsSource = true,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
         options ??= ArtifactOpenOptions.Default;
 
-        try
-        {
+        try {
             long sourceLength = source.Length;
             ArtifactHeader header = await ReadHeaderAsync(source, sourceLength, cancellationToken).ConfigureAwait(false);
             SegmentManifest manifest = SegmentManifest.Read(
                 await ReadManifestBytesAsync(source, header, sourceLength, cancellationToken).ConfigureAwait(false));
 
             List<ArtifactSegment> segments = [];
-            foreach (SegmentDescriptor descriptor in manifest.Segments)
-            {
-                if (!descriptor.IsLive)
-                {
+            foreach (SegmentDescriptor descriptor in manifest.Segments) {
+                if (!descriptor.IsLive) {
                     continue;
                 }
 
                 ValidateSegment(descriptor, sourceLength);
                 (int count, int directorySize) = DirectoryGeometry(descriptor);
                 RecordDirectory directory;
-                if (count == 0)
-                {
+                if (count == 0) {
                     directory = EmptyDirectory();
-                }
-                else
-                {
+                } else {
                     using ChunkLease chunk = await source
                         .ReadAsync((long)descriptor.DirectoryOffset, directorySize, cancellationToken)
                         .ConfigureAwait(false);
@@ -270,11 +252,8 @@ public sealed class Artifact : IDisposable
             }
 
             return new Artifact(source, header, DetermineSourceKind(source), segments, ownsSource);
-        }
-        catch
-        {
-            if (ownsSource)
-            {
+        } catch {
+            if (ownsSource) {
                 source.Dispose();
             }
 
@@ -287,19 +266,15 @@ public sealed class Artifact : IDisposable
     /// <returns>A <see cref="RecordLease"/> holding the record bytes; the caller must dispose it.</returns>
     /// <exception cref="System.ObjectDisposedException">The <see cref="Artifact"/> instance has been disposed.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="globalIndex"/> is negative or exceeds the total record count.</exception>
-    public RecordLease ReadRecord(long globalIndex)
-    {
+    public RecordLease ReadRecord(long globalIndex) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        if (globalIndex < 0)
-        {
+        if (globalIndex < 0) {
             throw new ArgumentOutOfRangeException(nameof(globalIndex));
         }
 
         long remaining = globalIndex;
-        foreach (ArtifactSegment segment in Segments)
-        {
-            if (remaining < segment.RecordCount)
-            {
+        foreach (ArtifactSegment segment in Segments) {
+            if (remaining < segment.RecordCount) {
                 return segment.ReadRecord((int)remaining);
             }
 
@@ -318,19 +293,15 @@ public sealed class Artifact : IDisposable
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="globalIndex"/> is negative or exceeds the total record count.</exception>
     /// <exception cref="CartographFormatException">The record's checksum does not match, when verification is enabled.</exception>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken"/>.</exception>
-    public ValueTask<RecordLease> ReadRecordAsync(long globalIndex, CancellationToken cancellationToken = default)
-    {
+    public ValueTask<RecordLease> ReadRecordAsync(long globalIndex, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        if (globalIndex < 0)
-        {
+        if (globalIndex < 0) {
             throw new ArgumentOutOfRangeException(nameof(globalIndex));
         }
 
         long remaining = globalIndex;
-        foreach (ArtifactSegment segment in Segments)
-        {
-            if (remaining < segment.RecordCount)
-            {
+        foreach (ArtifactSegment segment in Segments) {
+            if (remaining < segment.RecordCount) {
                 return segment.ReadRecordAsync((int)remaining, cancellationToken);
             }
 
@@ -344,10 +315,8 @@ public sealed class Artifact : IDisposable
     /// Releases the artifact. The backing <see cref="IChunkSource"/> is disposed only when this
     /// artifact owns it — that is, unless it was opened with <c>ownsSource: false</c>.
     /// </summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) == 0 && _ownsSource)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0 && _ownsSource) {
             _source.Dispose();
         }
     }
@@ -364,8 +333,7 @@ public sealed class Artifact : IDisposable
     /// <summary>Reports which strategy a chunk source represents, classifying anything unrecognized as custom.</summary>
     /// <param name="source">The chunk source to classify.</param>
     /// <returns>The matching <see cref="ChunkSourceKind"/>, or <see cref="ChunkSourceKind.Custom"/> for caller-supplied sources.</returns>
-    private static ChunkSourceKind DetermineSourceKind(IChunkSource source) => source switch
-    {
+    private static ChunkSourceKind DetermineSourceKind(IChunkSource source) => source switch {
         MappedChunkSource => ChunkSourceKind.Mapped,
         RandomAccessChunkSource => ChunkSourceKind.RandomAccess,
         _ => ChunkSourceKind.Custom,
@@ -376,12 +344,10 @@ public sealed class Artifact : IDisposable
     /// <param name="sourceLength">The total length reported by the source.</param>
     /// <returns>The validated <see cref="ArtifactHeader"/>.</returns>
     /// <exception cref="CartographFormatException">The source is smaller than the fixed header, or the header is invalid or declares more content than the source holds.</exception>
-    private static ArtifactHeader ReadHeader(IChunkSource source, long sourceLength)
-    {
+    private static ArtifactHeader ReadHeader(IChunkSource source, long sourceLength) {
         EnsureHeaderFits(sourceLength);
         Span<byte> headerBytes = stackalloc byte[ArtifactFormat.HeaderSize];
-        using (ChunkLease chunk = source.Read(0, ArtifactFormat.HeaderSize))
-        {
+        using (ChunkLease chunk = source.Read(0, ArtifactFormat.HeaderSize)) {
             CopyExact(chunk.Sequence, headerBytes);
         }
 
@@ -397,12 +363,10 @@ public sealed class Artifact : IDisposable
     /// <returns>A task that resolves to the validated <see cref="ArtifactHeader"/>.</returns>
     /// <exception cref="CartographFormatException">The source is smaller than the fixed header, or the header is invalid or declares more content than the source holds.</exception>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken"/>.</exception>
-    private static async ValueTask<ArtifactHeader> ReadHeaderAsync(IChunkSource source, long sourceLength, CancellationToken cancellationToken)
-    {
+    private static async ValueTask<ArtifactHeader> ReadHeaderAsync(IChunkSource source, long sourceLength, CancellationToken cancellationToken) {
         EnsureHeaderFits(sourceLength);
         byte[] headerBytes = new byte[ArtifactFormat.HeaderSize];
-        using (ChunkLease chunk = await source.ReadAsync(0, ArtifactFormat.HeaderSize, cancellationToken).ConfigureAwait(false))
-        {
+        using (ChunkLease chunk = await source.ReadAsync(0, ArtifactFormat.HeaderSize, cancellationToken).ConfigureAwait(false)) {
             CopyExact(chunk.Sequence, headerBytes);
         }
 
@@ -417,8 +381,7 @@ public sealed class Artifact : IDisposable
     /// <param name="sourceLength">The total length reported by the source.</param>
     /// <returns>The raw manifest bytes.</returns>
     /// <exception cref="CartographFormatException">Manifest offset/length falls outside the file.</exception>
-    private static byte[] ReadManifestBytes(IChunkSource source, in ArtifactHeader header, long sourceLength)
-    {
+    private static byte[] ReadManifestBytes(IChunkSource source, in ArtifactHeader header, long sourceLength) {
         int manifestLength = ValidateManifestRegion(header, sourceLength);
         byte[] manifestBytes = new byte[manifestLength];
         using ChunkLease chunk = source.Read((long)header.ManifestOffset, manifestLength);
@@ -434,8 +397,7 @@ public sealed class Artifact : IDisposable
     /// <returns>A task that resolves to the raw manifest bytes.</returns>
     /// <exception cref="CartographFormatException">Manifest offset/length falls outside the file.</exception>
     /// <exception cref="System.OperationCanceledException">The operation was canceled via <paramref name="cancellationToken"/>.</exception>
-    private static async ValueTask<byte[]> ReadManifestBytesAsync(IChunkSource source, ArtifactHeader header, long sourceLength, CancellationToken cancellationToken)
-    {
+    private static async ValueTask<byte[]> ReadManifestBytesAsync(IChunkSource source, ArtifactHeader header, long sourceLength, CancellationToken cancellationToken) {
         int manifestLength = ValidateManifestRegion(header, sourceLength);
         byte[] manifestBytes = new byte[manifestLength];
         using ChunkLease chunk = await source
@@ -448,10 +410,8 @@ public sealed class Artifact : IDisposable
     /// <summary>Throws when the source cannot even contain the fixed header.</summary>
     /// <param name="sourceLength">The total length reported by the source.</param>
     /// <exception cref="CartographFormatException">File is smaller than the fixed header.</exception>
-    private static void EnsureHeaderFits(long sourceLength)
-    {
-        if (sourceLength < ArtifactFormat.HeaderSize)
-        {
+    private static void EnsureHeaderFits(long sourceLength) {
+        if (sourceLength < ArtifactFormat.HeaderSize) {
             throw new CartographFormatException("File is smaller than the fixed header.");
         }
     }
@@ -460,10 +420,8 @@ public sealed class Artifact : IDisposable
     /// <param name="header">The header to check.</param>
     /// <param name="sourceLength">The total length reported by the source.</param>
     /// <exception cref="CartographFormatException">Artifact is truncated: the header declares more bytes than the source holds.</exception>
-    private static void ValidateContentLength(in ArtifactHeader header, long sourceLength)
-    {
-        if ((long)header.ContentLength > sourceLength)
-        {
+    private static void ValidateContentLength(in ArtifactHeader header, long sourceLength) {
+        if ((long)header.ContentLength > sourceLength) {
             throw new CartographFormatException(
                 $"Artifact is truncated: header declares {header.ContentLength} bytes but the file is {sourceLength}.");
         }
@@ -474,15 +432,13 @@ public sealed class Artifact : IDisposable
     /// <param name="sourceLength">The total length reported by the source.</param>
     /// <returns>The manifest length in bytes, narrowed to <see cref="int"/>.</returns>
     /// <exception cref="CartographFormatException">Manifest offset/length falls outside the file.</exception>
-    private static int ValidateManifestRegion(in ArtifactHeader header, long sourceLength)
-    {
+    private static int ValidateManifestRegion(in ArtifactHeader header, long sourceLength) {
         long manifestOffset = (long)header.ManifestOffset;
         long manifestLength = (long)header.ManifestLength;
         if (manifestOffset < ArtifactFormat.HeaderSize
             || manifestLength < ArtifactFormat.ManifestHeaderSize
             || manifestLength > int.MaxValue
-            || manifestOffset + manifestLength > sourceLength)
-        {
+            || manifestOffset + manifestLength > sourceLength) {
             throw new CartographFormatException("Manifest offset/length falls outside the file.");
         }
 
@@ -493,12 +449,10 @@ public sealed class Artifact : IDisposable
     /// <param name="descriptor">The segment descriptor.</param>
     /// <returns>The record count and the directory region size in bytes.</returns>
     /// <exception cref="CartographFormatException">Record directory is too large to read.</exception>
-    private static (int Count, int DirectorySize) DirectoryGeometry(in SegmentDescriptor descriptor)
-    {
+    private static (int Count, int DirectorySize) DirectoryGeometry(in SegmentDescriptor descriptor) {
         int count = checked((int)descriptor.RecordCount);
         long directorySize = (long)count * ArtifactFormat.RecordEntrySize;
-        if (directorySize > int.MaxValue)
-        {
+        if (directorySize > int.MaxValue) {
             throw new CartographFormatException("Record directory is too large to read.");
         }
 
@@ -518,15 +472,13 @@ public sealed class Artifact : IDisposable
     /// <param name="directorySize">The directory region size in bytes.</param>
     /// <returns>A <see cref="RecordDirectory"/> containing the parsed per-record offsets, lengths, and checksums.</returns>
     /// <exception cref="CartographFormatException">The directory region was short, or a record offset/length falls outside its segment.</exception>
-    private static RecordDirectory ParseDirectory(in ReadOnlySequence<byte> sequence, in SegmentDescriptor descriptor, int count, int directorySize)
-    {
+    private static RecordDirectory ParseDirectory(in ReadOnlySequence<byte> sequence, in SegmentDescriptor descriptor, int count, int directorySize) {
         long[] relOffsets = new long[count];
         long[] lengths = new long[count];
         ulong[] checksums = new ulong[count];
 
         byte[] bytes = ArrayPool<byte>.Shared.Rent(directorySize);
-        try
-        {
+        try {
             CopyExact(sequence, bytes.AsSpan(0, directorySize));
             ReadOnlySpan<byte> span = bytes.AsSpan(0, directorySize);
 
@@ -537,23 +489,20 @@ public sealed class Artifact : IDisposable
             long segmentEnd = (long)descriptor.DataOffset + (long)descriptor.DataLength;
             long payloadLimit = payloadOffset < directoryOffset ? directoryOffset : segmentEnd;
 
-            for (int i = 0; i < count; i++)
-            {
+            for (int i = 0; i < count; i++) {
                 ReadOnlySpan<byte> entry = span.Slice(i * ArtifactFormat.RecordEntrySize, ArtifactFormat.RecordEntrySize);
                 long relOffset = (long)BinaryPrimitives.ReadUInt64LittleEndian(entry[0..]);
                 long length = (long)BinaryPrimitives.ReadUInt64LittleEndian(entry[8..]);
                 ulong checksum = BinaryPrimitives.ReadUInt64LittleEndian(entry[16..]);
 
-                if (length > ArtifactFormat.MaxRecordLength)
-                {
+                if (length > ArtifactFormat.MaxRecordLength) {
                     throw new CartographFormatException(
                         $"Record {i} is {length} bytes, which exceeds the {ArtifactFormat.MaxRecordLength}-byte " +
                         "maximum a single record can be read as.");
                 }
 
                 long absolute = payloadOffset + relOffset;
-                if (relOffset < 0 || length < 0 || absolute < payloadOffset || absolute + length > payloadLimit)
-                {
+                if (relOffset < 0 || length < 0 || absolute < payloadOffset || absolute + length > payloadLimit) {
                     throw new CartographFormatException($"Record {i} offset/length falls outside its segment.");
                 }
 
@@ -561,9 +510,7 @@ public sealed class Artifact : IDisposable
                 lengths[i] = length;
                 checksums[i] = checksum;
             }
-        }
-        finally
-        {
+        } finally {
             ArrayPool<byte>.Shared.Return(bytes);
         }
 
@@ -577,10 +524,8 @@ public sealed class Artifact : IDisposable
     /// <param name="sequence">The sequence returned by the chunk source.</param>
     /// <param name="destination">The span to fill.</param>
     /// <exception cref="CartographFormatException">Artifact is truncated: unexpected end of file.</exception>
-    private static void CopyExact(in ReadOnlySequence<byte> sequence, Span<byte> destination)
-    {
-        if (sequence.Length != destination.Length)
-        {
+    private static void CopyExact(in ReadOnlySequence<byte> sequence, Span<byte> destination) {
+        if (sequence.Length != destination.Length) {
             throw new CartographFormatException("Artifact is truncated: unexpected end of file.");
         }
 
@@ -592,11 +537,9 @@ public sealed class Artifact : IDisposable
     /// </summary>
     /// <param name="sequence">The byte sequence to hash.</param>
     /// <returns>The XxHash3 hash value as a <see cref="ulong"/>.</returns>
-    internal static ulong HashSequence(ReadOnlySequence<byte> sequence)
-    {
+    internal static ulong HashSequence(ReadOnlySequence<byte> sequence) {
         XxHash3 hasher = new();
-        foreach (ReadOnlyMemory<byte> segment in sequence)
-        {
+        foreach (ReadOnlyMemory<byte> segment in sequence) {
             hasher.Append(segment.Span);
         }
 
@@ -619,34 +562,29 @@ public sealed class Artifact : IDisposable
     /// <exception cref="CartographFormatException">Segment data region falls outside the file.</exception>
     /// <exception cref="CartographFormatException">Segment record directory falls outside the segment.</exception>
     /// <exception cref="CartographFormatException">Segment payload region falls outside the segment.</exception>
-    private static void ValidateSegment(in SegmentDescriptor descriptor, long fileLength)
-    {
+    private static void ValidateSegment(in SegmentDescriptor descriptor, long fileLength) {
         long dataOffset = (long)descriptor.DataOffset;
         long dataLength = (long)descriptor.DataLength;
         long directoryOffset = (long)descriptor.DirectoryOffset;
         long payloadOffset = (long)descriptor.PayloadOffset;
 
-        if (dataOffset < ArtifactFormat.HeaderSize || dataLength < 0 || dataOffset + dataLength > fileLength)
-        {
+        if (dataOffset < ArtifactFormat.HeaderSize || dataLength < 0 || dataOffset + dataLength > fileLength) {
             throw new CartographFormatException("Segment data region falls outside the file.");
         }
 
         long dataEnd = dataOffset + dataLength;
         long directorySize = (long)descriptor.RecordCount * ArtifactFormat.RecordEntrySize;
-        if (directoryOffset < dataOffset || directoryOffset + directorySize > dataEnd)
-        {
+        if (directoryOffset < dataOffset || directoryOffset + directorySize > dataEnd) {
             throw new CartographFormatException("Segment record directory falls outside the segment.");
         }
 
-        if (payloadOffset < dataOffset || payloadOffset > dataEnd)
-        {
+        if (payloadOffset < dataOffset || payloadOffset > dataEnd) {
             throw new CartographFormatException("Segment payload region falls outside the segment.");
         }
 
         // Payload-first segments are bounded against the directory when each record is parsed;
         // directory-first segments must clear the directory outright.
-        if (payloadOffset >= directoryOffset && payloadOffset < directoryOffset + directorySize)
-        {
+        if (payloadOffset >= directoryOffset && payloadOffset < directoryOffset + directorySize) {
             throw new CartographFormatException("Segment payload region overlaps its record directory.");
         }
     }
@@ -655,8 +593,10 @@ public sealed class Artifact : IDisposable
 /// <summary>
 /// Holds the per-record relative offsets, byte lengths, and XxHash3 checksums for all records in a segment.
 /// </summary>
-internal sealed class RecordDirectory(long[] relOffsets, long[] lengths, ulong[] checksums)
-{
+/// <param name="relOffsets">The payload-relative byte offset of each record, indexed by record position.</param>
+/// <param name="lengths">The byte length of each record, indexed by record position.</param>
+/// <param name="checksums">The XxHash3 checksum of each record, indexed by record position. A value of <c>0</c> means the checksum was not computed.</param>
+internal sealed class RecordDirectory(long[] relOffsets, long[] lengths, ulong[] checksums) {
     /// <summary>The payload-relative byte offset of each record, indexed by record position.</summary>
     /// <value>The payload-relative byte offset of each record, indexed by record position.</value>
     public long[] RelOffsets { get; } = relOffsets;

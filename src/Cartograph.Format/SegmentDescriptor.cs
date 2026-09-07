@@ -44,39 +44,54 @@ namespace Cartograph.Format;
 /// consistency without a write-ahead log, and is modeled on Lucene's MMapDirectory and Tantivy's
 /// segment design.
 /// </remarks>
-public readonly struct SegmentDescriptor
-{
+public readonly struct SegmentDescriptor {
     /// <summary>A stable identifier for the segment.</summary>
     /// <value>A stable identifier for the segment.</value>
-    public required uint SegmentId { get; init; }
+    public required uint SegmentId {
+        get; init;
+    }
 
     /// <summary>Descriptor flags (see <see cref="ArtifactFormat.SegmentFlagLive"/>).</summary>
     /// <value>Descriptor flags (see <see cref="ArtifactFormat.SegmentFlagLive"/>).</value>
-    public required uint Flags { get; init; }
+    public required uint Flags {
+        get; init;
+    }
 
     /// <summary>The file-relative offset of the segment region.</summary>
     /// <value>The file-relative offset of the segment region.</value>
-    public required ulong DataOffset { get; init; }
+    public required ulong DataOffset {
+        get; init;
+    }
 
     /// <summary>The length of the segment region in bytes.</summary>
     /// <value>The length of the segment region in bytes.</value>
-    public required ulong DataLength { get; init; }
+    public required ulong DataLength {
+        get; init;
+    }
 
     /// <summary>The number of records in the segment.</summary>
     /// <value>The number of records in the segment.</value>
-    public required ulong RecordCount { get; init; }
+    public required ulong RecordCount {
+        get; init;
+    }
 
     /// <summary>The file-relative offset of the record directory.</summary>
     /// <value>The file-relative offset of the record directory.</value>
-    public required ulong DirectoryOffset { get; init; }
+    public required ulong DirectoryOffset {
+        get; init;
+    }
 
     /// <summary>The file-relative offset of the record payload region.</summary>
     /// <value>The file-relative offset of the record payload region.</value>
-    public required ulong PayloadOffset { get; init; }
+    public required ulong PayloadOffset {
+        get; init;
+    }
 
     /// <summary>The XxHash3 checksum of the whole segment region.</summary>
     /// <value>The XxHash3 checksum of the whole segment region.</value>
-    public required ulong Checksum { get; init; }
+    public required ulong Checksum {
+        get; init;
+    }
 
     /// <summary>Whether the segment is live in the current manifest.</summary>
     /// <value>Whether the segment is live in the current manifest.</value>
@@ -85,10 +100,8 @@ public readonly struct SegmentDescriptor
     /// <summary>Serializes the descriptor into <paramref name="destination"/> (<see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes).</summary>
     /// <param name="destination">The span to write the descriptor into; must be at least <see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes long.</param>
     /// <exception cref="System.ArgumentException">Destination is smaller than a segment descriptor.</exception>
-    public void Write(Span<byte> destination)
-    {
-        if (destination.Length < ArtifactFormat.SegmentDescriptorSize)
-        {
+    public void Write(Span<byte> destination) {
+        if (destination.Length < ArtifactFormat.SegmentDescriptorSize) {
             throw new ArgumentException("Destination is smaller than a segment descriptor.", nameof(destination));
         }
 
@@ -108,15 +121,12 @@ public readonly struct SegmentDescriptor
     /// <param name="source">The raw bytes to parse; must be at least <see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes long.</param>
     /// <returns>The populated <see cref="SegmentDescriptor"/>.</returns>
     /// <exception cref="CartographFormatException">Manifest is truncated inside a segment descriptor.</exception>
-    public static SegmentDescriptor Read(ReadOnlySpan<byte> source)
-    {
-        if (source.Length < ArtifactFormat.SegmentDescriptorSize)
-        {
+    public static SegmentDescriptor Read(ReadOnlySpan<byte> source) {
+        if (source.Length < ArtifactFormat.SegmentDescriptorSize) {
             throw new CartographFormatException("Manifest is truncated inside a segment descriptor.");
         }
 
-        return new SegmentDescriptor
-        {
+        return new SegmentDescriptor {
             SegmentId = BinaryPrimitives.ReadUInt32LittleEndian(source[0..]),
             Flags = BinaryPrimitives.ReadUInt32LittleEndian(source[4..]),
             DataOffset = BinaryPrimitives.ReadUInt64LittleEndian(source[8..]),

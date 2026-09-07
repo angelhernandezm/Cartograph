@@ -70,8 +70,7 @@ public readonly record struct PeerInstance(
 /// losing presence information must never stop a user from reading their data.
 /// </para>
 /// </remarks>
-public sealed class InstancePresence : IDisposable
-{
+public sealed class InstancePresence : IDisposable {
     /// <summary>
     /// Age beyond which a heartbeat file is treated as belonging to a dead process
     /// </summary>
@@ -119,8 +118,7 @@ public sealed class InstancePresence : IDisposable
     /// <param name="frontEnd">Short name of the user interface, used only for display</param>
     /// <exception cref="System.ArgumentException"><paramref name="artifactPath" /> is <see langword="null" /> or empty.</exception>
     /// <exception cref="System.ArgumentException"><paramref name="frontEnd" /> is <see langword="null" /> or empty.</exception>
-    public InstancePresence(string artifactPath, string frontEnd)
-    {
+    public InstancePresence(string artifactPath, string frontEnd) {
         ArgumentException.ThrowIfNullOrEmpty(artifactPath);
         ArgumentException.ThrowIfNullOrEmpty(frontEnd);
 
@@ -141,10 +139,8 @@ public sealed class InstancePresence : IDisposable
     /// The live peers ordered by process identifier. The list is never empty in practice, because it
     /// always contains this instance, but it degrades to an empty list if the registry is unusable.
     /// </returns>
-    public IReadOnlyList<PeerInstance> Refresh(long mappedBytes)
-    {
-        if (_disposed)
-        {
+    public IReadOnlyList<PeerInstance> Refresh(long mappedBytes) {
+        if (_disposed) {
             return [];
         }
 
@@ -157,10 +153,8 @@ public sealed class InstancePresence : IDisposable
     /// Writes this instance's heartbeat file
     /// </summary>
     /// <param name="mappedBytes">Bytes of the artifact this instance has touched so far</param>
-    private void Publish(long mappedBytes)
-    {
-        try
-        {
+    private void Publish(long mappedBytes) {
+        try {
             Directory.CreateDirectory(_directory);
 
             string payload = string.Join(
@@ -180,9 +174,7 @@ public sealed class InstancePresence : IDisposable
             using StreamWriter writer = new(stream, Encoding.UTF8);
 
             writer.Write(payload);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             // Presence is advisory; a registry that cannot be written must not break the explorer.
         }
     }
@@ -191,42 +183,31 @@ public sealed class InstancePresence : IDisposable
     /// Reads every live heartbeat and removes the stale ones
     /// </summary>
     /// <returns>The peers whose heartbeat is recent and whose process is still alive</returns>
-    private IReadOnlyList<PeerInstance> Enumerate()
-    {
+    private IReadOnlyList<PeerInstance> Enumerate() {
         List<PeerInstance> peers = [];
 
-        try
-        {
-            if (!Directory.Exists(_directory))
-            {
+        try {
+            if (!Directory.Exists(_directory)) {
                 return peers;
             }
 
             DateTime cutoff = DateTime.UtcNow - StaleAfter;
 
-            foreach (string file in Directory.EnumerateFiles(_directory, "*" + HeartbeatExtension))
-            {
-                try
-                {
-                    if (File.GetLastWriteTimeUtc(file) < cutoff)
-                    {
+            foreach (string file in Directory.EnumerateFiles(_directory, "*" + HeartbeatExtension)) {
+                try {
+                    if (File.GetLastWriteTimeUtc(file) < cutoff) {
                         File.Delete(file);
                         continue;
                     }
 
-                    if (TryParse(file, out PeerInstance peer) && IsAlive(peer.ProcessId))
-                    {
+                    if (TryParse(file, out PeerInstance peer) && IsAlive(peer.ProcessId)) {
                         peers.Add(peer);
                     }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
+                } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                     // A peer rewriting or deleting its own heartbeat races with this walk; skip it.
                 }
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             return peers;
         }
 
@@ -241,8 +222,7 @@ public sealed class InstancePresence : IDisposable
     /// <param name="path">Path of the heartbeat file to read</param>
     /// <param name="peer">Receives the parsed peer when the file is well formed</param>
     /// <returns><see langword="true" /> when the file could be parsed</returns>
-    private bool TryParse(string path, out PeerInstance peer)
-    {
+    private bool TryParse(string path, out PeerInstance peer) {
         peer = default;
 
         using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -255,8 +235,7 @@ public sealed class InstancePresence : IDisposable
             || !long.TryParse(lines[2], CultureInfo.InvariantCulture, out long openedTicks)
             || !long.TryParse(lines[3], CultureInfo.InvariantCulture, out long mappedBytes)
             || openedTicks < 0
-            || openedTicks > DateTime.MaxValue.Ticks)
-        {
+            || openedTicks > DateTime.MaxValue.Ticks) {
             return false;
         }
 
@@ -275,20 +254,15 @@ public sealed class InstancePresence : IDisposable
     /// </summary>
     /// <param name="processId">Identifier to test</param>
     /// <returns><see langword="true" /> when the process is still running</returns>
-    private static bool IsAlive(int processId)
-    {
-        if (processId == Environment.ProcessId)
-        {
+    private static bool IsAlive(int processId) {
+        if (processId == Environment.ProcessId) {
             return true;
         }
 
-        try
-        {
+        try {
             using Process process = Process.GetProcessById(processId);
             return !process.HasExited;
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) {
             return false;
         }
     }
@@ -303,12 +277,10 @@ public sealed class InstancePresence : IDisposable
     /// case-insensitive by default, so two instances that opened the same file through differently
     /// cased paths still find one another.
     /// </remarks>
-    private static string KeyFor(string artifactPath)
-    {
+    private static string KeyFor(string artifactPath) {
         string full = Path.GetFullPath(artifactPath);
 
-        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
-        {
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) {
             full = full.ToLowerInvariant();
         }
 
@@ -318,21 +290,16 @@ public sealed class InstancePresence : IDisposable
     /// <summary>
     /// Removes this instance's heartbeat so peers stop listing it
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 
         _disposed = true;
 
-        try
-        {
+        try {
             File.Delete(_heartbeatPath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
             // The heartbeat ages out on its own, so a failed delete is harmless.
         }
     }

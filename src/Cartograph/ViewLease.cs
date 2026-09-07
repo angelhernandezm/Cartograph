@@ -48,8 +48,7 @@ namespace Cartograph;
 /// freed memory.
 /// </para>
 /// </remarks>
-public sealed class ViewLease : IDisposable
-{
+public sealed class ViewLease : IDisposable {
     /// <summary>The segment this lease holds a reference on, cleared on disposal.</summary>
     private MappedSegment? _segment;
 
@@ -64,8 +63,7 @@ public sealed class ViewLease : IDisposable
     /// </summary>
     /// <param name="segment">The owning segment whose reference count is incremented by this lease.</param>
     /// <param name="memory">The leased read-only memory region.</param>
-    internal ViewLease(MappedSegment segment, ReadOnlyMemory<byte> memory)
-    {
+    internal ViewLease(MappedSegment segment, ReadOnlyMemory<byte> memory) {
         _segment = segment;
         _memory = memory;
     }
@@ -73,10 +71,8 @@ public sealed class ViewLease : IDisposable
     /// <summary>The leased region as read-only memory. Valid only until the lease is disposed.</summary>
     /// <value>The leased region as read-only memory. Valid only until the lease is disposed.</value>
     /// <exception cref="System.ObjectDisposedException">The <see cref="ViewLease"/> has been disposed.</exception>
-    public ReadOnlyMemory<byte> Memory
-    {
-        get
-        {
+    public ReadOnlyMemory<byte> Memory {
+        get {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             return _memory;
         }
@@ -88,10 +84,8 @@ public sealed class ViewLease : IDisposable
     public ReadOnlySpan<byte> Span => Memory.Span;
 
     /// <summary>Releases this lease, decrementing the segment reference count. Safe to call more than once.</summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) == 0)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0) {
             MappedSegment? segment = _segment;
             _segment = null;
             segment?.ReleaseLease();

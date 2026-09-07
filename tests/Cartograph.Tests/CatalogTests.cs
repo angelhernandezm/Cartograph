@@ -40,8 +40,7 @@ using Xunit;
 namespace Cartograph.Tests;
 
 /// <summary>Tests for <see cref="FileCatalog"/> and <see cref="CatalogedArtifact"/>.</summary>
-public sealed class CatalogTests
-{
+public sealed class CatalogTests {
     /// <summary>Payload of the single small file packed by the fixture artifact.</summary>
     private static readonly byte[] SmallPayload = "the quick brown fox\n"u8.ToArray();
 
@@ -53,10 +52,8 @@ public sealed class CatalogTests
 
     /// <summary>A serialized catalog survives a round-trip through its binary form.</summary>
     [Fact]
-    public void SerializeRoundTripsEveryField()
-    {
-        FileCatalog original = new()
-        {
+    public void SerializeRoundTripsEveryField() {
+        FileCatalog original = new() {
             SourceRoot = @"C:\some\root",
             CreatedUtc = new DateTime(2026, 9, 6, 11, 19, 24, DateTimeKind.Utc),
             GroupingMode = "extension",
@@ -100,8 +97,7 @@ public sealed class CatalogTests
 
     /// <summary>A record that is not a catalog is rejected rather than misread.</summary>
     [Fact]
-    public void DeserializeRejectsForeignRecords()
-    {
+    public void DeserializeRejectsForeignRecords() {
         ReadOnlySequence<byte> notACatalog = new("this is not a catalog"u8.ToArray());
 
         Assert.Throws<InvalidDataException>(() => FileCatalog.Deserialize(notACatalog));
@@ -109,8 +105,7 @@ public sealed class CatalogTests
 
     /// <summary>Path decomposition of an entry matches the forward-slash convention.</summary>
     [Fact]
-    public void EntryDecomposesItsRelativePath()
-    {
+    public void EntryDecomposesItsRelativePath() {
         CatalogEntry nested = NewEntry("src/Cartograph/MappedFile.cs");
         CatalogEntry root = NewEntry("LICENSE");
 
@@ -125,8 +120,7 @@ public sealed class CatalogTests
 
     /// <summary>Opening an artifact recovers its catalog from record zero.</summary>
     [Fact]
-    public void OpenRecoversTheCatalog()
-    {
+    public void OpenRecoversTheCatalog() {
         using TempFile artifact = new(WriteFixture());
         using CatalogedArtifact cataloged = CatalogedArtifact.Open(artifact.Path);
 
@@ -139,8 +133,7 @@ public sealed class CatalogTests
 
     /// <summary>An artifact without a catalog record fails to open with a clear error.</summary>
     [Fact]
-    public void OpenRejectsAnArtifactWithoutACatalog()
-    {
+    public void OpenRejectsAnArtifactWithoutACatalog() {
         using TempFile artifact = new(TestArtifacts.WriteSingleSegment([TestArtifacts.Pattern(64, 1)]));
 
         Assert.Throws<InvalidDataException>(() => CatalogedArtifact.Open(artifact.Path));
@@ -148,8 +141,7 @@ public sealed class CatalogTests
 
     /// <summary>Extracting a file that spans several records reproduces it byte for byte.</summary>
     [Fact]
-    public void ExtractReassemblesAMultiRecordFile()
-    {
+    public void ExtractReassemblesAMultiRecordFile() {
         using TempFile artifact = new(WriteFixture());
         using CatalogedArtifact cataloged = CatalogedArtifact.Open(artifact.Path);
 
@@ -168,8 +160,7 @@ public sealed class CatalogTests
 
     /// <summary>A bounded preview never reads more than it was asked for.</summary>
     [Fact]
-    public void ReadPrefixIsBounded()
-    {
+    public void ReadPrefixIsBounded() {
         using TempFile artifact = new(WriteFixture());
         using CatalogedArtifact cataloged = CatalogedArtifact.Open(artifact.Path);
 
@@ -182,8 +173,7 @@ public sealed class CatalogTests
 
     /// <summary>Verification recomputes the whole-file hash recorded at pack time.</summary>
     [Fact]
-    public void VerifyMatchesTheRecordedChecksum()
-    {
+    public void VerifyMatchesTheRecordedChecksum() {
         using TempFile artifact = new(WriteFixture());
         using CatalogedArtifact cataloged = CatalogedArtifact.Open(artifact.Path);
 
@@ -196,8 +186,7 @@ public sealed class CatalogTests
 
     /// <summary>Builds a small artifact carrying a catalog, mirroring what the packer writes.</summary>
     /// <returns>The path of the artifact that was written.</returns>
-    private static string WriteFixture()
-    {
+    private static string WriteFixture() {
         byte[] large = TestArtifacts.Pattern(LargeLength, 7);
 
         List<CatalogEntry> entries =
@@ -226,8 +215,7 @@ public sealed class CatalogTests
             },
         ];
 
-        FileCatalog catalog = new()
-        {
+        FileCatalog catalog = new() {
             SourceRoot = Path.GetTempPath(),
             CreatedUtc = DateTime.UtcNow,
             GroupingMode = "flat",
@@ -242,8 +230,7 @@ public sealed class CatalogTests
         SegmentBuilder content = writer.AddSegment(1u);
         content.AddRecord(SmallPayload);
 
-        for (int offset = 0; offset < large.Length; offset += PieceSize)
-        {
+        for (int offset = 0; offset < large.Length; offset += PieceSize) {
             content.AddRecord(large.AsSpan(offset, Math.Min(PieceSize, large.Length - offset)));
         }
 
@@ -256,8 +243,7 @@ public sealed class CatalogTests
     /// <summary>Builds an entry that carries nothing but a relative path.</summary>
     /// <param name="relativePath">Path to place on the entry.</param>
     /// <returns>A catalog entry whose other fields are zero.</returns>
-    private static CatalogEntry NewEntry(string relativePath) => new()
-    {
+    private static CatalogEntry NewEntry(string relativePath) => new() {
         RelativePath = relativePath,
         Length = 0,
         RecordCount = 1,

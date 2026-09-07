@@ -46,8 +46,7 @@ namespace Cartograph.Explorer.WinForms;
 /// with a record is delegated to that session, so this type is concerned only with layout, threading
 /// and error presentation.
 /// </remarks>
-internal sealed class MainForm : Form
-{
+internal sealed class MainForm : Form {
     /// <summary>
     /// Name this front end publishes to the cross-process presence registry
     /// </summary>
@@ -130,8 +129,7 @@ internal sealed class MainForm : Form
     /// <param name="artifactPath">
     /// Artifact to open on startup, or <see langword="null" /> to start with an empty window
     /// </param>
-    public MainForm(string? artifactPath)
-    {
+    public MainForm(string? artifactPath) {
         Text = "Cartograph Explorer";
         MinimumSize = new Size(900, 560);
         Size = new Size(1280, 800);
@@ -145,8 +143,7 @@ internal sealed class MainForm : Form
 
         UpdateCommandState();
 
-        if (!string.IsNullOrWhiteSpace(artifactPath))
-        {
+        if (!string.IsNullOrWhiteSpace(artifactPath)) {
             // Deferred until the window is on screen, so a failure to open shows as a dialog over a
             // real window rather than over nothing, and so the constructor never touches a handle
             // that does not exist yet.
@@ -157,17 +154,14 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Composes the whole control tree
     /// </summary>
-    private void BuildLayout()
-    {
-        SplitContainer outer = new()
-        {
+    private void BuildLayout() {
+        SplitContainer outer = new() {
             Dock = DockStyle.Fill,
             Orientation = Orientation.Vertical,
             SplitterDistance = 560,
         };
 
-        SplitContainer right = new()
-        {
+        SplitContainer right = new() {
             Dock = DockStyle.Fill,
             Orientation = Orientation.Horizontal,
         };
@@ -201,15 +195,12 @@ internal sealed class MainForm : Form
     /// Builds the main menu
     /// </summary>
     /// <returns>The configured menu strip</returns>
-    private MenuStrip BuildMenu()
-    {
-        ToolStripMenuItem open = new("&Open artifact...", null, (_, _) => PromptOpenArtifact())
-        {
+    private MenuStrip BuildMenu() {
+        ToolStripMenuItem open = new("&Open artifact...", null, (_, _) => PromptOpenArtifact()) {
             ShortcutKeys = Keys.Control | Keys.O,
         };
 
-        ToolStripMenuItem newWindow = new("Open a &second instance", null, (_, _) => LaunchPeerInstance())
-        {
+        ToolStripMenuItem newWindow = new("Open a &second instance", null, (_, _) => LaunchPeerInstance()) {
             ShortcutKeys = Keys.Control | Keys.N,
             ToolTipText = "Starts another copy of this program on the same artifact, "
                 + "so both processes share one physical copy of its pages.",
@@ -221,13 +212,11 @@ internal sealed class MainForm : Form
         ToolStripMenuItem file = new("&File");
         file.DropDownItems.AddRange([open, newWindow, close, new ToolStripSeparator(), exit]);
 
-        ToolStripMenuItem verify = new("&Verify record", null, async (_, _) => await VerifySelectedAsync())
-        {
+        ToolStripMenuItem verify = new("&Verify record", null, async (_, _) => await VerifySelectedAsync()) {
             ShortcutKeys = Keys.Control | Keys.R,
         };
 
-        ToolStripMenuItem extract = new("&Extract record...", null, (_, _) => ExtractSelected())
-        {
+        ToolStripMenuItem extract = new("&Extract record...", null, (_, _) => ExtractSelected()) {
             ShortcutKeys = Keys.Control | Keys.E,
         };
 
@@ -257,13 +246,14 @@ internal sealed class MainForm : Form
     /// Builds the search tool strip
     /// </summary>
     /// <returns>The configured tool strip</returns>
-    private ToolStrip BuildToolStrip()
-    {
+    private ToolStrip BuildToolStrip() {
         _search.Width = 320;
         _search.ToolTipText = "Filter the catalog by relative path";
         _search.TextChanged += (_, _) => ApplyFilter();
 
-        ToolStrip strip = new() { GripStyle = ToolStripGripStyle.Hidden };
+        ToolStrip strip = new() {
+            GripStyle = ToolStripGripStyle.Hidden
+        };
         strip.Items.Add(new ToolStripLabel("Filter:"));
         strip.Items.Add(_search);
 
@@ -273,8 +263,7 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Configures the virtual list of catalogued files
     /// </summary>
-    private void ConfigureFileList()
-    {
+    private void ConfigureFileList() {
         _files.Dock = DockStyle.Fill;
         _files.View = View.Details;
         _files.FullRowSelect = true;
@@ -297,8 +286,7 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Configures the record preview pane
     /// </summary>
-    private void ConfigurePreview()
-    {
+    private void ConfigurePreview() {
         _preview.Dock = DockStyle.Fill;
         _preview.Multiline = true;
         _preview.ReadOnly = true;
@@ -311,8 +299,7 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Configures the peer process list
     /// </summary>
-    private void ConfigurePeerList()
-    {
+    private void ConfigurePeerList() {
         _peers.Dock = DockStyle.Fill;
         _peers.View = View.Details;
         _peers.FullRowSelect = true;
@@ -329,10 +316,8 @@ internal sealed class MainForm : Form
     /// </summary>
     /// <param name="sender">The list raising the event</param>
     /// <param name="e">Event carrying the index to materialize</param>
-    private void OnRetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e)
-    {
-        if (_session is null || e.ItemIndex < 0 || e.ItemIndex >= _visible.Count)
-        {
+    private void OnRetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e) {
+        if (_session is null || e.ItemIndex < 0 || e.ItemIndex >= _visible.Count) {
             e.Item = new ListViewItem(string.Empty);
             return;
         }
@@ -352,17 +337,14 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Asks the user for an artifact and opens it
     /// </summary>
-    private void PromptOpenArtifact()
-    {
-        using OpenFileDialog dialog = new()
-        {
+    private void PromptOpenArtifact() {
+        using OpenFileDialog dialog = new() {
             Title = "Open a Cartograph artifact",
             Filter = "Cartograph artifacts (*.ctg)|*.ctg|All files (*.*)|*.*",
             CheckFileExists = true,
         };
 
-        if (dialog.ShowDialog(this) == DialogResult.OK)
-        {
+        if (dialog.ShowDialog(this) == DialogResult.OK) {
             OpenArtifact(dialog.FileName);
         }
     }
@@ -371,17 +353,13 @@ internal sealed class MainForm : Form
     /// Opens an artifact, replacing any artifact already open
     /// </summary>
     /// <param name="path">Path of the artifact to open</param>
-    private void OpenArtifact(string path)
-    {
+    private void OpenArtifact(string path) {
         CloseArtifact();
 
-        try
-        {
+        try {
             _session = ArtifactSession.Open(path, FrontEndName);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
-            or Format.CartographFormatException or ArgumentException)
-        {
+        } catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
+              or Format.CartographFormatException or ArgumentException) {
             ShowError("The artifact could not be opened.", ex);
             return;
         }
@@ -405,8 +383,7 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Closes the open artifact, if any
     /// </summary>
-    private void CloseArtifact()
-    {
+    private void CloseArtifact() {
         _session?.Dispose();
         _session = null;
         _visible = [];
@@ -431,35 +408,28 @@ internal sealed class MainForm : Form
     /// The path of the running executable is unavailable, so no sibling process can be started. The
     /// exception is caught locally and surfaced to the user as a message box.
     /// </exception>
-    private void LaunchPeerInstance()
-    {
-        if (_session is null)
-        {
+    private void LaunchPeerInstance() {
+        if (_session is null) {
             return;
         }
 
-        try
-        {
+        try {
             // Environment.ProcessPath is the apphost, which already knows how to find the runtime, so
             // this works for both a framework-dependent and a self-contained publish.
             string? executable = Environment.ProcessPath;
 
-            if (string.IsNullOrEmpty(executable))
-            {
+            if (string.IsNullOrEmpty(executable)) {
                 throw new InvalidOperationException("The path of the running executable is unavailable.");
             }
 
-            using Process? started = Process.Start(new ProcessStartInfo(executable, [_session.Path])
-            {
+            using Process? started = Process.Start(new ProcessStartInfo(executable, [_session.Path]) {
                 UseShellExecute = false,
             });
 
             _operationStatus.Text = started is null
                 ? "The second instance did not start."
                 : string.Create(CultureInfo.InvariantCulture, $"Started instance pid {started.Id}");
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
+        } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) {
             ShowError("A second instance could not be started.", ex);
         }
     }
@@ -467,10 +437,8 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Re-applies the search filter and rebuilds the visible list
     /// </summary>
-    private void ApplyFilter()
-    {
-        if (_session is null)
-        {
+    private void ApplyFilter() {
+        if (_session is null) {
             return;
         }
 
@@ -486,10 +454,8 @@ internal sealed class MainForm : Form
     /// Gets the entry backing the current selection
     /// </summary>
     /// <returns>The selected entry, or <see langword="null" /> when nothing is selected</returns>
-    private CatalogEntry? SelectedEntry()
-    {
-        if (_session is null || _files.SelectedIndices.Count == 0)
-        {
+    private CatalogEntry? SelectedEntry() {
+        if (_session is null || _files.SelectedIndices.Count == 0) {
             return null;
         }
 
@@ -501,22 +467,19 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Refreshes the preview pane after the selection changed
     /// </summary>
-    private void OnSelectionChanged()
-    {
+    private void OnSelectionChanged() {
         UpdateCommandState();
 
         CatalogEntry? entry = SelectedEntry();
 
-        if (_session is null || entry is null)
-        {
+        if (_session is null || entry is null) {
             _preview.Text = _session is null
                 ? "Open an artifact and select a file to preview it."
                 : "Select a file to preview it.";
             return;
         }
 
-        try
-        {
+        try {
             RecordPreview preview = _session.Preview(entry);
 
             string truncation = preview.IsTruncated
@@ -535,9 +498,7 @@ internal sealed class MainForm : Form
             // A TextBox only honours CRLF, and the hex dump and most packed text files use bare LF.
             _preview.Text = header + preview.Content.ReplaceLineEndings("\r\n");
             _preview.Select(0, 0);
-        }
-        catch (Exception ex) when (ex is IOException or Format.CartographFormatException)
-        {
+        } catch (Exception ex) when (ex is IOException or Format.CartographFormatException) {
             _preview.Text = $"The record could not be read.\r\n\r\n{ex.Message}";
         }
     }
@@ -546,13 +507,11 @@ internal sealed class MainForm : Form
     /// Verifies the selected record against its recorded checksum
     /// </summary>
     /// <returns>A task that completes when verification has finished</returns>
-    private async Task VerifySelectedAsync()
-    {
+    private async Task VerifySelectedAsync() {
         ArtifactSession? session = _session;
         CatalogEntry? entry = SelectedEntry();
 
-        if (session is null || entry is null || _busy)
-        {
+        if (session is null || entry is null || _busy) {
             return;
         }
 
@@ -562,8 +521,7 @@ internal sealed class MainForm : Form
             CultureInfo.InvariantCulture,
             $"Verifying {entry.Name}: {DisplayFormat.Bytes(read)}"));
 
-        try
-        {
+        try {
             CatalogVerification result = await Task.Run(() => session.Verify(entry, progress));
 
             string verdict = !result.HasExpectedChecksum
@@ -575,8 +533,7 @@ internal sealed class MainForm : Form
                 $"{entry.Name} {verdict} - {DisplayFormat.Bytes(result.BytesRead)} in "
                 + $"{DisplayFormat.Duration(result.Elapsed)} ({DisplayFormat.Rate(result.BytesRead, result.Elapsed)})");
 
-            if (result.HasExpectedChecksum && !result.Matches)
-            {
+            if (result.HasExpectedChecksum && !result.Matches) {
                 MessageBox.Show(
                     this,
                     $"'{entry.RelativePath}' does not match the checksum recorded when it was packed.\n\n"
@@ -586,13 +543,9 @@ internal sealed class MainForm : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
-        }
-        catch (Exception ex) when (ex is IOException or Format.CartographFormatException)
-        {
+        } catch (Exception ex) when (ex is IOException or Format.CartographFormatException) {
             ShowError("The record could not be verified.", ex);
-        }
-        finally
-        {
+        } finally {
             SetBusy(false);
         }
     }
@@ -600,39 +553,32 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Extracts the selected record to a file the user chooses
     /// </summary>
-    private void ExtractSelected()
-    {
+    private void ExtractSelected() {
         ArtifactSession? session = _session;
         CatalogEntry? entry = SelectedEntry();
 
-        if (session is null || entry is null)
-        {
+        if (session is null || entry is null) {
             return;
         }
 
-        using SaveFileDialog dialog = new()
-        {
+        using SaveFileDialog dialog = new() {
             Title = "Extract record",
             FileName = entry.Name,
             OverwritePrompt = true,
         };
 
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
+        if (dialog.ShowDialog(this) != DialogResult.OK) {
             return;
         }
 
-        try
-        {
+        try {
             long written = session.Extract(entry, dialog.FileName);
 
             _operationStatus.Text = string.Create(
                 CultureInfo.InvariantCulture,
                 $"Extracted {DisplayFormat.Bytes(written)} to {dialog.FileName}");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-            or Format.CartographFormatException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+              or Format.CartographFormatException) {
             ShowError("The record could not be extracted.", ex);
         }
     }
@@ -641,23 +587,19 @@ internal sealed class MainForm : Form
     /// Extracts every file currently shown into a folder the user chooses
     /// </summary>
     /// <returns>A task that completes when extraction has finished</returns>
-    private async Task ExtractAllAsync()
-    {
+    private async Task ExtractAllAsync() {
         ArtifactSession? session = _session;
 
-        if (session is null || _busy || _visible.Count == 0)
-        {
+        if (session is null || _busy || _visible.Count == 0) {
             return;
         }
 
-        using FolderBrowserDialog dialog = new()
-        {
+        using FolderBrowserDialog dialog = new() {
             Description = "Choose a folder to reconstruct the packed tree into",
             UseDescriptionForTitle = true,
         };
 
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
+        if (dialog.ShowDialog(this) != DialogResult.OK) {
             return;
         }
 
@@ -671,8 +613,7 @@ internal sealed class MainForm : Form
             CultureInfo.InvariantCulture,
             $"Extracting {DisplayFormat.Count(done)} of {DisplayFormat.Count(entries.Length)} files"));
 
-        try
-        {
+        try {
             long start = Stopwatch.GetTimestamp();
             long written = await Task.Run(() => session.ExtractAll(entries, destination, progress));
             TimeSpan elapsed = Stopwatch.GetElapsedTime(start);
@@ -681,14 +622,10 @@ internal sealed class MainForm : Form
                 CultureInfo.InvariantCulture,
                 $"Extracted {DisplayFormat.Count(entries.Length)} files ({DisplayFormat.Bytes(written)}) "
                 + $"in {DisplayFormat.Duration(elapsed)} ({DisplayFormat.Rate(written, elapsed)})");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-            or Format.CartographFormatException)
-        {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+              or Format.CartographFormatException) {
             ShowError("The files could not be extracted.", ex);
-        }
-        finally
-        {
+        } finally {
             SetBusy(false);
         }
     }
@@ -696,12 +633,10 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Copies the selected record's relative path to the clipboard
     /// </summary>
-    private void CopySelectedPath()
-    {
+    private void CopySelectedPath() {
         CatalogEntry? entry = SelectedEntry();
 
-        if (entry is null)
-        {
+        if (entry is null) {
             return;
         }
 
@@ -712,10 +647,8 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Shows the artifact-level metadata recovered from the catalog
     /// </summary>
-    private void ShowArtifactDetails()
-    {
-        if (_session is null)
-        {
+    private void ShowArtifactDetails() {
+        if (_session is null) {
             return;
         }
 
@@ -740,10 +673,8 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Re-samples the peer list and the process footprint
     /// </summary>
-    private void RefreshTelemetry()
-    {
-        if (_session is null)
-        {
+    private void RefreshTelemetry() {
+        if (_session is null) {
             return;
         }
 
@@ -751,27 +682,22 @@ internal sealed class MainForm : Form
 
         _peers.BeginUpdate();
 
-        try
-        {
+        try {
             _peers.Items.Clear();
 
-            foreach (PeerInstance peer in peers)
-            {
+            foreach (PeerInstance peer in peers) {
                 ListViewItem row = new(peer.ProcessId.ToString(CultureInfo.InvariantCulture));
                 row.SubItems.Add(peer.IsSelf ? peer.FrontEnd + " (this window)" : peer.FrontEnd);
                 row.SubItems.Add(DisplayFormat.Timestamp(peer.OpenedUtc));
                 row.SubItems.Add(DisplayFormat.Bytes(peer.MappedBytes));
 
-                if (peer.IsSelf)
-                {
+                if (peer.IsSelf) {
                     row.Font = new Font(_peers.Font, FontStyle.Bold);
                 }
 
                 _peers.Items.Add(row);
             }
-        }
-        finally
-        {
+        } finally {
             _peers.EndUpdate();
         }
 
@@ -787,18 +713,15 @@ internal sealed class MainForm : Form
     /// <summary>
     /// Enables or disables the commands according to what is currently open and selected
     /// </summary>
-    private void UpdateCommandState()
-    {
+    private void UpdateCommandState() {
         bool hasArtifact = _session is not null && !_busy;
         bool hasSelection = hasArtifact && SelectedEntry() is not null;
 
-        foreach (ToolStripItem item in _needsArtifact)
-        {
+        foreach (ToolStripItem item in _needsArtifact) {
             item.Enabled = hasArtifact;
         }
 
-        foreach (ToolStripItem item in _needsSelection)
-        {
+        foreach (ToolStripItem item in _needsSelection) {
             item.Enabled = hasSelection;
         }
     }
@@ -807,8 +730,7 @@ internal sealed class MainForm : Form
     /// Marks a long-running operation as started or finished
     /// </summary>
     /// <param name="busy"><see langword="true" /> while the operation runs</param>
-    private void SetBusy(bool busy)
-    {
+    private void SetBusy(bool busy) {
         _busy = busy;
         Cursor = busy ? Cursors.WaitCursor : Cursors.Default;
 
@@ -832,10 +754,8 @@ internal sealed class MainForm : Form
     /// Releases the window's resources and closes the artifact
     /// </summary>
     /// <param name="disposing"><see langword="true" /> when called from <see cref="System.IDisposable.Dispose" /></param>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
+    protected override void Dispose(bool disposing) {
+        if (disposing) {
             _poll.Stop();
             _poll.Dispose();
             _session?.Dispose();

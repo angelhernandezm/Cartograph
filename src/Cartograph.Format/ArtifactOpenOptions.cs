@@ -33,8 +33,7 @@
 namespace Cartograph.Format;
 
 /// <summary>Selects the <see cref="IChunkSource"/> strategy used to read record payloads.</summary>
-public enum ChunkSourceKind
-{
+public enum ChunkSourceKind {
     /// <summary>Memory-map the file (default). Zero-copy; wins on random reads over a hot page cache.</summary>
     Mapped = 0,
 
@@ -50,8 +49,7 @@ public enum ChunkSourceKind
 }
 
 /// <summary>Options controlling how an <see cref="Artifact"/> is opened.</summary>
-public sealed class ArtifactOpenOptions
-{
+public sealed class ArtifactOpenOptions {
     /// <summary>The default options: memory-mapped access with checksum verification enabled.</summary>
     /// <value>The default options: memory-mapped access with checksum verification enabled.</value>
     public static ArtifactOpenOptions Default { get; } = new();

@@ -40,18 +40,15 @@ namespace Cartograph.Tests;
 /// <summary>
 /// Tests that verify memory-alignment guarantees for record payloads.
 /// </summary>
-public class AlignmentTests
-{
+public class AlignmentTests {
     /// <summary>
     /// Verifies that a float array written to an artifact as raw bytes round-trips
     /// correctly when read back and cast via <c>MemoryMarshal.Cast&lt;byte, float&gt;</c>.
     /// </summary>
     [Fact]
-    public void FloatRecord_RoundTripsThroughMemoryMarshalCast()
-    {
+    public void FloatRecord_RoundTripsThroughMemoryMarshalCast() {
         float[] vector = new float[512];
-        for (int i = 0; i < vector.Length; i++)
-        {
+        for (int i = 0; i < vector.Length; i++) {
             vector[i] = MathF.Sin(i) * 3.5f + i;
         }
 
@@ -65,8 +62,7 @@ public class AlignmentTests
         Assert.True(lease.IsSingleSegment);
         ReadOnlySpan<float> readBack = MemoryMarshal.Cast<byte, float>(lease.FirstSpan);
         Assert.Equal(vector.Length, readBack.Length);
-        for (int i = 0; i < vector.Length; i++)
-        {
+        for (int i = 0; i < vector.Length; i++) {
             Assert.Equal(vector[i], readBack[i]);
         }
     }
@@ -76,8 +72,7 @@ public class AlignmentTests
     /// which is required for safe <c>MemoryMarshal.Cast&lt;byte, float&gt;</c> to <see cref="float"/>.
     /// </summary>
     [Fact]
-    public unsafe void FirstRecordPayload_IsAtLeast4ByteAligned()
-    {
+    public unsafe void FirstRecordPayload_IsAtLeast4ByteAligned() {
         byte[] payload = TestArtifacts.Pattern(2048, 11);
         string path = TestArtifacts.WriteSingleSegment([payload]);
         using TempFile temp = new(path);

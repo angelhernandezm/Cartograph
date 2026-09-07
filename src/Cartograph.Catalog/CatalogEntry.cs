@@ -42,19 +42,22 @@ namespace Cartograph.Catalog;
 /// lives in a catalog record written alongside the payload, which is exactly the pattern an
 /// application is expected to follow.
 /// </remarks>
-public sealed class CatalogEntry
-{
+public sealed class CatalogEntry {
     /// <summary>
     /// Gets the path of the file relative to the packed root, using forward slashes
     /// </summary>
     /// <value>A relative path such as <c>src/Cartograph/MappedFile.cs</c>.</value>
-    public required string RelativePath { get; init; }
+    public required string RelativePath {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the length of the file, in bytes
     /// </summary>
     /// <value>The total byte length of the file, summed across every record that holds its contents.</value>
-    public required long Length { get; init; }
+    public required long Length {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the number of consecutive records this file occupies
@@ -65,13 +68,17 @@ public sealed class CatalogEntry
     /// <c>[<see cref="GlobalIndex" />, <see cref="GlobalIndex" /> + <see cref="RecordCount" />)</c>.
     /// A zero-length file still occupies exactly one record.
     /// </value>
-    public required int RecordCount { get; init; }
+    public required int RecordCount {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the last write time of the source file, expressed in UTC ticks
     /// </summary>
     /// <value>The tick count of the file's UTC last write time at the moment it was packed.</value>
-    public required long LastWriteUtcTicks { get; init; }
+    public required long LastWriteUtcTicks {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the XxHash3 checksum of the whole file computed at pack time
@@ -83,19 +90,25 @@ public sealed class CatalogEntry
     /// does not indicate a defect. Artifact integrity is still protected by Cartograph's own
     /// per-record checksums, which are written and verified regardless.
     /// </remarks>
-    public required ulong Checksum { get; init; }
+    public required ulong Checksum {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the zero-based index of the segment that holds this file
     /// </summary>
     /// <value>An index into <see cref="Cartograph.Format.Artifact.Segments" />.</value>
-    public required int SegmentIndex { get; init; }
+    public required int SegmentIndex {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the zero-based index of the file's first record within its segment
     /// </summary>
     /// <value>An index accepted by <see cref="Cartograph.Format.ArtifactSegment.ReadRecord(int)" />.</value>
-    public required int RecordIndex { get; init; }
+    public required int RecordIndex {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the zero-based index of the file's first record across the whole artifact
@@ -104,7 +117,9 @@ public sealed class CatalogEntry
     /// The first of <see cref="RecordCount" /> consecutive indices, each accepted by
     /// <see cref="Cartograph.Format.Artifact.ReadRecord(long)" />.
     /// </value>
-    public required long GlobalIndex { get; init; }
+    public required long GlobalIndex {
+        get; init;
+    }
 
     /// <summary>
     /// Gets the last write time of the source file as a UTC <see cref="System.DateTime" />
@@ -116,10 +131,8 @@ public sealed class CatalogEntry
     /// Gets the file name portion of <see cref="RelativePath" />
     /// </summary>
     /// <value>The text after the final forward slash, or the whole path when there is none.</value>
-    public string Name
-    {
-        get
-        {
+    public string Name {
+        get {
             int slash = RelativePath.LastIndexOf('/');
             return slash < 0 ? RelativePath : RelativePath[(slash + 1)..];
         }
@@ -129,10 +142,8 @@ public sealed class CatalogEntry
     /// Gets the directory portion of <see cref="RelativePath" />
     /// </summary>
     /// <value>The text before the final forward slash, or an empty string for a file in the root.</value>
-    public string Directory
-    {
-        get
-        {
+    public string Directory {
+        get {
             int slash = RelativePath.LastIndexOf('/');
             return slash < 0 ? string.Empty : RelativePath[..slash];
         }
@@ -142,10 +153,8 @@ public sealed class CatalogEntry
     /// Gets the extension of <see cref="RelativePath" />, including the leading period
     /// </summary>
     /// <value>An extension such as <c>.cs</c>, or an empty string when the file has none.</value>
-    public string Extension
-    {
-        get
-        {
+    public string Extension {
+        get {
             string name = Name;
             int dot = name.LastIndexOf('.');
 

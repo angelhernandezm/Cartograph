@@ -38,8 +38,7 @@ namespace Cartograph.Explorer.Core;
 /// <summary>
 /// Identifies how a preview chose to render a record's bytes
 /// </summary>
-public enum PreviewKind
-{
+public enum PreviewKind {
     /// <summary>The record is empty, so there is nothing to render.</summary>
     Empty,
 
@@ -58,8 +57,7 @@ public enum PreviewKind
 /// into a preview, which is what keeps the user interface responsive on an artifact whose individual
 /// records may be larger than memory.
 /// </remarks>
-public sealed class RecordPreview
-{
+public sealed class RecordPreview {
     /// <summary>
     /// Default number of bytes a preview reads from the start of a record
     /// </summary>
@@ -77,8 +75,7 @@ public sealed class RecordPreview
     /// <param name="content">The rendered text</param>
     /// <param name="previewedBytes">Number of bytes that were rendered</param>
     /// <param name="totalBytes">Total length of the underlying file</param>
-    private RecordPreview(PreviewKind kind, string content, int previewedBytes, long totalBytes)
-    {
+    private RecordPreview(PreviewKind kind, string content, int previewedBytes, long totalBytes) {
         Kind = kind;
         Content = content;
         PreviewedBytes = previewedBytes;
@@ -89,25 +86,33 @@ public sealed class RecordPreview
     /// Gets the way the bytes were rendered
     /// </summary>
     /// <value>One of the <see cref="PreviewKind" /> values.</value>
-    public PreviewKind Kind { get; }
+    public PreviewKind Kind {
+        get;
+    }
 
     /// <summary>
     /// Gets the rendered preview text
     /// </summary>
     /// <value>Decoded text for a textual record, a hex dump for a binary one.</value>
-    public string Content { get; }
+    public string Content {
+        get;
+    }
 
     /// <summary>
     /// Gets the number of bytes that were rendered
     /// </summary>
     /// <value>At most the prefix size requested when the preview was built.</value>
-    public int PreviewedBytes { get; }
+    public int PreviewedBytes {
+        get;
+    }
 
     /// <summary>
     /// Gets the total length of the underlying file
     /// </summary>
     /// <value>The catalogued length, which may be far larger than <see cref="PreviewedBytes" />.</value>
-    public long TotalBytes { get; }
+    public long TotalBytes {
+        get;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the preview shows only part of the file
@@ -122,12 +127,10 @@ public sealed class RecordPreview
     /// <param name="totalBytes">Total length of the underlying file</param>
     /// <returns>A render-ready preview</returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="prefix" /> is <see langword="null" />.</exception>
-    public static RecordPreview Create(byte[] prefix, long totalBytes)
-    {
+    public static RecordPreview Create(byte[] prefix, long totalBytes) {
         ArgumentNullException.ThrowIfNull(prefix);
 
-        if (prefix.Length == 0)
-        {
+        if (prefix.Length == 0) {
             return new RecordPreview(
                 PreviewKind.Empty,
                 totalBytes == 0 ? "(empty file)" : "(no bytes were read)",
@@ -152,32 +155,26 @@ public sealed class RecordPreview
     /// sequence at the very end of the prefix is trimmed before decoding rather than failing the whole
     /// preview.
     /// </remarks>
-    private static bool TryDecodeText(byte[] prefix, out string text)
-    {
+    private static bool TryDecodeText(byte[] prefix, out string text) {
         text = string.Empty;
 
         ReadOnlySpan<byte> span = prefix;
 
         // Strip a UTF-8 byte order mark so it does not surface as a stray glyph in the viewer.
-        if (span.Length >= 3 && span[0] == 0xEF && span[1] == 0xBB && span[2] == 0xBF)
-        {
+        if (span.Length >= 3 && span[0] == 0xEF && span[1] == 0xBB && span[2] == 0xBF) {
             span = span[3..];
         }
 
-        if (span.IndexOf((byte)0) >= 0)
-        {
+        if (span.IndexOf((byte)0) >= 0) {
             return false;
         }
 
         span = TrimPartialRune(span);
 
-        try
-        {
+        try {
             text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
                 .GetString(span);
-        }
-        catch (DecoderFallbackException)
-        {
+        } catch (DecoderFallbackException) {
             return false;
         }
 
@@ -189,23 +186,19 @@ public sealed class RecordPreview
     /// </summary>
     /// <param name="span">Bytes to trim</param>
     /// <returns>The span without its trailing incomplete sequence, if it had one</returns>
-    private static ReadOnlySpan<byte> TrimPartialRune(ReadOnlySpan<byte> span)
-    {
+    private static ReadOnlySpan<byte> TrimPartialRune(ReadOnlySpan<byte> span) {
         // A UTF-8 sequence is at most four bytes, so at most three trailing bytes can be incomplete.
         int limit = Math.Min(3, span.Length);
 
-        for (int back = 1; back <= limit; back++)
-        {
+        for (int back = 1; back <= limit; back++) {
             byte candidate = span[^back];
 
-            if ((candidate & 0b1100_0000) == 0b1000_0000)
-            {
+            if ((candidate & 0b1100_0000) == 0b1000_0000) {
                 // A continuation byte; keep walking back towards the lead byte.
                 continue;
             }
 
-            int expected = candidate switch
-            {
+            int expected = candidate switch {
                 >= 0b1111_0000 => 4,
                 >= 0b1110_0000 => 3,
                 >= 0b1100_0000 => 2,
@@ -226,19 +219,16 @@ public sealed class RecordPreview
     /// One line per sixteen bytes, each showing the offset, the hexadecimal values and the printable
     /// ASCII rendering
     /// </returns>
-    private static string HexDump(ReadOnlySpan<byte> bytes)
-    {
+    private static string HexDump(ReadOnlySpan<byte> bytes) {
         // Offset, hex column, gutter and ASCII column come to a little under 80 characters per line.
         StringBuilder builder = new(((bytes.Length / HexBytesPerLine) + 1) * 80);
 
-        for (int offset = 0; offset < bytes.Length; offset += HexBytesPerLine)
-        {
+        for (int offset = 0; offset < bytes.Length; offset += HexBytesPerLine) {
             ReadOnlySpan<byte> line = bytes[offset..Math.Min(offset + HexBytesPerLine, bytes.Length)];
 
             builder.Append(offset.ToString("x8", CultureInfo.InvariantCulture)).Append("  ");
 
-            for (int i = 0; i < HexBytesPerLine; i++)
-            {
+            for (int i = 0; i < HexBytesPerLine; i++) {
                 builder.Append(i < line.Length
                     ? line[i].ToString("x2", CultureInfo.InvariantCulture)
                     : "  ");
@@ -248,8 +238,7 @@ public sealed class RecordPreview
 
             builder.Append(' ');
 
-            foreach (byte value in line)
-            {
+            foreach (byte value in line) {
                 builder.Append(value is >= 0x20 and < 0x7F ? (char)value : '.');
             }
 

@@ -60,8 +60,7 @@ namespace Cartograph;
 /// will typically raise an access violation.
 /// </para>
 /// </remarks>
-public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
-{
+public sealed unsafe class MappedMemoryManager : MemoryManager<byte> {
     /// <summary>The mapped view whose base pointer this manager pins.</summary>
     private readonly SafeMemoryMappedViewHandle _handle;
 
@@ -91,8 +90,7 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     /// <exception cref="System.ArgumentNullException"><paramref name="handle" /> is <c>null</c>.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="length" /> or <paramref name="pointerOffset" /> is negative.</exception>
     /// <exception cref="System.InvalidOperationException">Failed to acquire a pointer to the mapped view.</exception>
-    public MappedMemoryManager(SafeMemoryMappedViewHandle handle, long pointerOffset, int length)
-    {
+    public MappedMemoryManager(SafeMemoryMappedViewHandle handle, long pointerOffset, int length) {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
         ArgumentOutOfRangeException.ThrowIfNegative(pointerOffset);
@@ -102,8 +100,7 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
 
         byte* basePointer = null;
         handle.AcquirePointer(ref basePointer);
-        if (basePointer is null)
-        {
+        if (basePointer is null) {
             throw new InvalidOperationException("Failed to acquire a pointer to the mapped view.");
         }
 
@@ -119,8 +116,7 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     /// <inheritdoc />
     /// <exception cref="System.ObjectDisposedException">The manager has been disposed.</exception>
     /// <returns>A <see cref="Span{T}"/> over the mapped region.</returns>
-    public override Span<byte> GetSpan()
-    {
+    public override Span<byte> GetSpan() {
         ObjectDisposedException.ThrowIf(_disposed, this);
         return new Span<byte>(_pointer, _length);
     }
@@ -135,11 +131,9 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     /// <returns>A <see cref="MemoryHandle"/> pointing at the specified element in the mapped region.</returns>
     /// <exception cref="System.ObjectDisposedException">The manager has been disposed.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="elementIndex"/> is out of range.</exception>
-    public override MemoryHandle Pin(int elementIndex = 0)
-    {
+    public override MemoryHandle Pin(int elementIndex = 0) {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if ((uint)elementIndex > (uint)_length)
-        {
+        if ((uint)elementIndex > (uint)_length) {
             throw new ArgumentOutOfRangeException(nameof(elementIndex));
         }
 
@@ -147,23 +141,19 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     }
 
     /// <inheritdoc />
-    public override void Unpin()
-    {
+    public override void Unpin() {
         // No-op: mapped memory does not move and no GC handle was taken.
     }
 
     /// <inheritdoc />
     /// <param name="disposing"><see langword="true"/> if called from <see cref="IDisposable.Dispose"/>; <see langword="false"/> if called from a finalizer.</param>
-    protected override void Dispose(bool disposing)
-    {
-        if (_disposed)
-        {
+    protected override void Dispose(bool disposing) {
+        if (_disposed) {
             return;
         }
 
         _disposed = true;
-        if (_acquired)
-        {
+        if (_acquired) {
             _handle.ReleasePointer();
             _acquired = false;
         }

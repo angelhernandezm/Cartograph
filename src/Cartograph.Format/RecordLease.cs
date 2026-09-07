@@ -42,8 +42,7 @@ namespace Cartograph.Format;
 /// segment when the record crosses a window boundary; under a pooled source it is a single rented
 /// buffer. Either way <see cref="Sequence"/> is valid only until the lease is disposed.
 /// </remarks>
-public sealed class RecordLease : IDisposable
-{
+public sealed class RecordLease : IDisposable {
     /// <summary>The underlying chunk lease that owns the raw memory backing this record.</summary>
     private readonly ChunkLease _chunk;
 
@@ -51,8 +50,7 @@ public sealed class RecordLease : IDisposable
     /// Initializes a new instance of the <see cref="RecordLease" /> class.
     /// </summary>
     /// <param name="chunk">The chunk lease that holds the record's raw memory.</param>
-    internal RecordLease(ChunkLease chunk)
-    {
+    internal RecordLease(ChunkLease chunk) {
         _chunk = chunk;
     }
 
