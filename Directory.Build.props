@@ -35,7 +35,7 @@
     turns the embedded commit metadata into a debuggable source mapping.
   -->
   <PropertyGroup>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -53,12 +53,14 @@
   </PropertyGroup>
 
   <!--
-    The solution README doubles as the package landing page. It is only attached to projects that
-    actually produce a package, because NuGet fails the pack when PackageReadmeFile names a file the
-    package does not contain.
+    Each package carries its own landing page. The root README is written for someone browsing the
+    repository - build steps, layout, benchmarks - whereas a package page has to answer "what is this
+    and how do I call it" for someone who has just found it on nuget.org. PACKAGE.md lives beside the
+    project it describes and is attached only to projects that actually produce a package, because
+    NuGet fails the pack when PackageReadmeFile names a file the package does not contain.
   -->
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildProjectDirectory)\PACKAGE.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
