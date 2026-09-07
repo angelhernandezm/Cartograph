@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RootNamespace>Cartograph.Explorer.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cartograph\Cartograph.csproj" />
+    <ProjectReference Include="..\..\src\Cartograph.Catalog\Cartograph.Catalog.csproj" />
+    <ProjectReference Include="..\..\src\Cartograph.Format\Cartograph.Format.csproj" />
+  </ItemGroup>
+
+</Project>
