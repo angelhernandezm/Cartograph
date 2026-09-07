@@ -28,6 +28,13 @@ Read an artifact somebody else produced:
 dotnet run --project harnesses/Cartograph.Harness -c Release -- load src.ctg --list --top 50
 ```
 
+Inspect an artifact's structure without touching a single payload byte — useful for seeing how
+little work opening actually does, and which segments are payload-first:
+
+```bash
+dotnet run --project harnesses/Cartograph.Harness -c Release -- manifest src.ctg
+```
+
 The verb is optional. A folder implies `roundtrip`, a file implies `load`:
 
 ```bash
@@ -39,7 +46,10 @@ cartograph-harness docs.ctg    # load
 
 Cartograph treats records as opaque bytes — it has no notion of a file name, a size or a timestamp.
 That metadata has to come from somewhere, so the harness does what a real application would do: it
-writes its own catalog into the artifact.
+writes a catalog into the artifact. That catalog is no longer harness-local: it now ships as the
+`Cartograph.Catalog` package (`FileCatalog`, `CatalogEntry`, `CatalogedArtifact`), which the sample
+explorers use as well, so what the harness demonstrates is a supported way to store file identity
+rather than a one-off.
 
 ```
 segment 0  ->  record 0            the serialized FileCatalog
@@ -76,6 +86,7 @@ the unit of checksum and of append-only growth in the format:
 | `pack <folder>` | Recursively read the folder and write an artifact |
 | `load <artifact>` | Open, report on and verify an artifact |
 | `roundtrip <folder>` | `pack`, then `load`, plus a byte-for-byte comparison against the files still on disk |
+| `manifest <artifact>` | Print the header and segment manifest without reading any record payload. Aliased as `info` |
 
 ### Packing options
 

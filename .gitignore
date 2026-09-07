@@ -61,3 +61,6 @@ Thumbs.db
 # Cartograph scratch artifacts
 *.ctg
 *.cartograph
+
+# Article drafts — local working notes, not part of the repo
+article/

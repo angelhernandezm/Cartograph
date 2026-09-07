@@ -1,8 +1,8 @@
 # Cartograph
 
-**Portable memory-mapped data artifacts for .NET.** Opening is constant-time regardless of file
-size, memory stays flat under load, and multiple processes mapping the same artifact share one
-physical copy. Records stream out as `ReadOnlySequence<byte>` with no copies onto the managed
+**Portable memory-mapped data artifacts for .NET.** Opening costs the same whether a file holds
+two megabytes of data or two hundred gigabytes, memory stays flat under load, and multiple
+processes mapping the same artifact share one physical copy. Records stream out as `ReadOnlySequence<byte>` with no copies onto the managed
 heap — vectors, logs, columns, documents. Retrieval-augmented generation (RAG) over a corpus
 larger than RAM is the first worked example, not the definition of the library.
 
@@ -48,9 +48,12 @@ scope:
 - `dotnet/runtime` already contains an internal, private `MemoryMappedFileMemoryManager :
   MemoryManager<byte>` — capped at `int.MaxValue`, single-view, never made public. IKVM
   independently reimplemented the same pattern privately. That's strong validating evidence for
-  the *primitive* (three different projects needed it and rewrote it), and a live
-  dotnet/runtime proposal (#122815, 2025) targets faster direct mapped access — a door in for an
-  eventual API proposal.
+  the *primitive* (three different projects needed it and rewrote it). Two long-open
+  dotnet/runtime issues make the same case from the outside: #24805 (2018) asked how to wrap a
+  file larger than 2 GB in `Memory<T>` and got `int.MaxValue` as the answer, and #57330 (2021,
+  still open) asks the CLR for help making use-after-dispose on a mapped region *detectable*
+  rather than undefined — precisely the hazard `ViewLease` exists to contain. Together they are a
+  door in for an eventual API proposal.
 - mmap + SIMD + on-disk approximate nearest neighbor (ANN) search is **already thoroughly solved**
   natively: Faiss (`IO_FLAG_MMAP`), DiskANN (and Microsoft's own DiskANN3 research asset,
   productized in Cosmos DB), Milvus mmap mode, LanceDB, USearch (has C# bindings). Microsoft's own
@@ -71,9 +74,14 @@ an HTTP server.
 ### The reframe: the file *is* the format
 
 The strongest version of the idea isn't just "stream data efficiently" — it's that a Cartograph
-artifact needs no load step at all. Opening a file means `mmap` + header validation, which is
-`O(1)` regardless of size: a 200 GB artifact opens as fast as a 2 MB one, because no payload is
-deserialized up front, only mapped. This is the zero-copy-deserialization idea (as used by
+artifact needs no load step at all. Opening a file means `mmap` + header validation, so **open
+cost is independent of how much data the file contains**: no payload is deserialized up front,
+only mapped. The shorthand for this is "O(1) open," and it needs one qualification to be exact —
+opening also reads each live segment's record directory, 24 bytes per record, so the cost is
+constant in *payload size* and linear in *record count*. A 200 GB artifact of large records opens
+as fast as a 2 MB one; a 200 GB artifact of a hundred million tiny records has a 2.4 GB directory
+to read and parse, and does not. Payload size is usually imposed on you; record granularity is a
+design variable you control. This is the zero-copy-deserialization idea (as used by
 FlatBuffers, Cap'n Proto, Arrow, Lucene, Tantivy, LanceDB) applied at the file-format level, and
 it directly strengthens the Azure Functions cold-start story: bake or cache the artifact once,
 and every subsequent cold start maps it instantly instead of rehydrating it from a data store.
@@ -256,7 +264,47 @@ the harness does this with `--piece-size`. The artifact itself has no size ceili
 
 Measured: a 514 MiB tree packed with 4 MiB pieces (132 records) held a **30.6 MiB peak working
 set**, and every extracted file matched its source SHA256 — including a 300 MB file spread over 75
-records and a 0-byte file.
+records and a 0-byte file. (One manual run, not CI.)
+
+### 2.8 Writing without knowing a record's length: `StreamingArtifactWriter`
+
+§2.7 rests on the observation that layout needs record *lengths*, known up front. That is true of
+`SegmentedArtifactWriter`, and it is a real constraint: `AddFileRecord` must be able to stat the
+file. `StreamingArtifactWriter` removes even that requirement.
+
+It writes each payload to the destination at the moment it is appended and never holds it
+afterwards, always emitting **payload-first**. Because the record directory is written when the
+segment closes, a record's length and checksum are both known by the time they are needed — so the
+writer can accept a record whose length nobody knows in advance, straight from a `Stream`:
+
+```csharp
+using StreamingArtifactWriter writer = new("corpus.ctg");
+using (StreamingSegment segment = writer.BeginSegment())
+{
+    segment.AppendRecord(bytes);                   // a span already in hand
+    segment.AppendRecord(stream);                  // length discovered while writing
+    await segment.AppendRecordAsync(stream);       // same, asynchronously
+    segment.AppendRecord(w => Serialize(w));       // write into an IBufferWriter<byte>
+}
+
+writer.Complete();                                 // writes the manifest, patches the header
+```
+
+Steady-state cost is one pooled staging buffer plus 24 bytes of directory state per record in the
+open segment, so ingesting an artifact of arbitrary size costs a bounded, constant amount of
+managed memory and no payload-sized array is ever allocated. Because the writer emits sequentially,
+one segment is open at a time; disposing a `StreamingSegment` completes and publishes it.
+
+Three properties are worth stating because they are deliberate rather than incidental. The
+destination must be **seekable**, since `Complete()` rewrites the reserved header in place. A writer
+disposed **without** `Complete()` abandons the open segment and leaves a zeroed placeholder header —
+the file is deliberately *not* a valid artifact, so a crashed ingest can never be mistaken for a
+finished one. And the output is **byte-for-byte compatible** with `SegmentedArtifactWriter`, read by
+`Artifact` with no format change at all.
+
+The practical division: use `SegmentedArtifactWriter` when you are packing files you can measure,
+and `StreamingArtifactWriter` when bytes arrive from somewhere that cannot tell you how many there
+will be — a network stream, a compressor, a serializer writing into an `IBufferWriter<byte>`.
 
 ---
 
@@ -265,17 +313,34 @@ records and a 0-byte file.
 These are the specific, checkable claims the project makes about itself (from the README and
 design notes), each with the mechanism that backs it:
 
-1. **Constant-time open regardless of file size.** Opening reads a fixed 64-byte header and a small
-   manifest, never the payload — verified by the `OpenTimeBenchmarks` suite, whose stated purpose is
-   to show a *flat* open-time curve across 8/64/256 MiB files, contrasted with a linear
-   `Baseline_ReadAllBytes`.
-2. **Flat memory / graceful degradation under memory pressure.** Because payload pages are clean,
-   file-backed, mapped memory, the OS can reclaim them under pressure and re-fault later instead of
-   the process hitting `OutOfMemoryException` or getting OOM-killed.
-3. **Cross-process page sharing.** Multiple processes mapping the same read-only artifact share one
-   physical copy of its pages through the OS page cache — an OS-level property of `mmap`, not
-   something Cartograph implements itself, but one the format is designed to make useful (immutable,
-   read-only artifacts).
+1. **Open cost independent of payload size.** Opening reads a fixed 64-byte header, a small
+   manifest, and each live segment's record directory (24 bytes per record) — never the payload. So
+   open is constant in payload size and linear in record count; see §2.3's note on the distinction.
+   The `OpenTimeBenchmarks` suite is built to show a *flat* open-time curve across 8/64/256 MiB
+   files against a linear `Baseline_ReadAllBytes`, and `Cartograph.Baseline`'s measured A/B run
+   confirms the shape: `baseline-naive` needs **421.9 ms and a 629 MiB managed allocation** to open
+   a 600 MiB container, against **17.6 ms and 8.5 KB** for the mapped reader.
+
+   One caveat matters more than the win, and the baseline harness states it plainly: **a hand-rolled
+   index-only reader also opens in constant time, and opens faster.** `baseline-naive-stream` opens
+   the same tree in **7.7 ms** versus the mapped reader's 17.6 ms, because it reads a small index and
+   stops while `Artifact.Open` additionally parses a header, a manifest and a per-record directory
+   and validates every offset. Constant-time open is not the moat — any careful developer reaches it
+   in an afternoon. See `harnesses/Cartograph.Baseline/README.md` for the full tables.
+2. **Flat memory / graceful degradation under memory pressure — argued, not yet demonstrated.**
+   Because payload pages are clean, file-backed, mapped memory, the OS can reclaim them under
+   pressure and re-fault later instead of the process hitting `OutOfMemoryException` or getting
+   OOM-killed. This is the project's central claim and it rests on documented OS behaviour, but
+   **no test in this repository runs a scan under a hard memory limit and shows it happening**.
+   Until one does it should be read as a well-founded argument rather than a result. See the gap
+   list below.
+3. **Cross-process page sharing — now observable.** Multiple processes mapping the same read-only
+   artifact share one physical copy of its pages through the OS page cache: an OS-level property of
+   `mmap`, not something Cartograph implements itself, but one the format is designed to make useful
+   (immutable, read-only artifacts). The sample explorers demonstrate it directly. Both ship without
+   a single-instance guard, and `InstancePresence` publishes a per-process heartbeat so each window
+   lists its live peers and its own mapped bytes — the sharing can be watched rather than taken on
+   trust.
 4. **Zero-copy record access.** Records stream out as `ReadOnlySequence<byte>` with no copy onto the
    managed heap under the mapped chunk source; `RecordLease.FirstSpan` /
    `MemoryMarshal.Cast<byte, float>` let SIMD code operate directly on mapped pages.
@@ -310,12 +375,27 @@ design notes), each with the mechanism that backs it:
   `RecordSource` objects rather than `byte[]`, and `AddFileRecord` streams a file's bytes through a
   pooled 1 MiB buffer at `Save` time. Building an artifact larger than RAM — the natural complement
   to reading one larger than RAM — now works. See §2.7.
+- **The central claim has no test.** "Converting a hard OOM into graceful degradation" is stated
+  in §1 as the project's central, defensible claim, and nothing in the suite or the harnesses
+  exercises it. No test runs under a cgroup or job-object memory limit; none compares a managed
+  baseline being OOM-killed against a mapped path merely slowing down. The reasoning is sound and
+  rests on documented OS behaviour, but the repository's evidence is currently strongest for its
+  least distinctive claims (round-tripping, safe failure on malformed input) and absent for its
+  most distinctive one. Closing this is the highest-value outstanding work: a container with a hard
+  limit well below the artifact size, a full scan through both `Cartograph.Baseline`'s `naive` mode
+  and Cartograph's mapped source, and the exit code and peak RSS of each.
+- **No *BenchmarkDotNet* output is committed**, so the `bench/` suite's open-time curve is a claim
+  it can measure rather than a published result. The A/B numbers that do exist — and they are
+  thorough — live in `harnesses/Cartograph.Baseline/README.md`, which is not linked from the
+  headline claims above and should be.
 - **A minor resource-leak nit**: if `MappedMemoryManager`'s constructor throws inside
   `MappedSegment`'s constructor, the already-created `_accessor` is not disposed. Still present
   (`MappedSegment.cs`, the `_accessor = …` / `_manager = new …` pair is not wrapped in a `try`).
   Flagged as a known, low-priority issue.
 - **No *automated* test exercises a multi-gigabyte file.** `SegmentedSequenceTests` proves the
-  window-stitching *mechanism* (forcing a 200 KB record across artificially tiny 1-byte windows), and
+  window-stitching *mechanism* (forcing a 200 KB record across the smallest windows the OS will
+  grant — the tests request `WindowSize = 1` and `MappedFile.OpenRead` rounds it up to the
+  allocation granularity, 64 KiB on Windows), and
   `StreamingRecordTests` proves the streaming write path, but both stay small enough for CI. The
   largest verified round trip is a manual 514 MiB run; a true multi-GB round trip remains unproven in
   the suite.
@@ -335,14 +415,15 @@ explicitly meant to generalize:
   artifact to a resource-constrained client (desktop, edge device, NativeAOT app) that only ever
   maps and reads it — no ingestion pipeline needed on the device.
 - **Fast cold starts in serverless / containers.** Bake or cache an artifact once; every subsequent
-  cold start maps it in `O(1)` time instead of re-deserializing or re-fetching a data store — a
+  cold start maps it — paying only for metadata — instead of re-deserializing or re-fetching a
+  data store — a
   direct answer to the Azure Functions cold-start/OOM story that motivated the project.
 - **Multi-process / multi-worker fan-out.** N worker processes mapping the same read-only artifact
   share one physical copy in the OS page cache, instead of N independent managed-heap copies.
 - **Log or event indexes** where records are appended once, read many times, and the file is larger
   than comfortably fits in RAM.
 - **Columnar or document caches** — any workload where "open a file and start reading records" needs
-  to be O(1) regardless of file size, and where records are opaque byte payloads whose meaning is
+  to be independent of how much data the file holds, and where records are opaque byte payloads whose meaning is
   defined by the caller, not by Cartograph.
 - **A benchmarking harness for comparing mmap vs. pooled `RandomAccess`** on a given access pattern
   before committing to one, via the shared `IChunkSource` abstraction.
@@ -467,7 +548,9 @@ Layer 0/1 (the `Cartograph` package) is the reusable, format-agnostic substrate:
 mapped views, leases, and stitched byte sequences, and nothing about records, vectors, or RAG.
 Layer 2 (`Cartograph.Format`) builds the artifact file format — header, manifest, segments, record
 directory, checksums — entirely on top of Layer 0/1's `IChunkSource`/`ReadOnlySequence<byte>`
-primitives. Anything the caller builds (a RAG store, a log index, a columnar cache) is Layer 3 and
+primitives. `Cartograph.Catalog` sits between them and the application as a thin Layer 2.5, adding
+file identity — paths, timestamps, record spans — that the format deliberately omits. Anything the
+caller builds (a RAG store, a log index, a columnar cache) is Layer 3 and
 never needs to know whether its bytes came from a mapped view or a pooled buffer.
 
 ### Object/lifetime relationships (substrate layer)
@@ -550,6 +633,8 @@ inside the segment and do not overlap.
 Cartograph.sln
 src/Cartograph/                  the mapped-memory substrate (Layer 0/1)
 src/Cartograph.Format/           artifact format: header, manifest, segments, records
+src/Cartograph.Catalog/          file catalog: pack and address a folder tree inside an artifact
+samples/Cartograph.Explorer.*/   WinForms and GTK4 artifact explorers over a shared core
 tests/Cartograph.Tests/          xUnit tests
 bench/Cartograph.Benchmarks/     BenchmarkDotNet harness
 harnesses/Cartograph.Harness/    console app: pack/inspect/extract a real folder tree
@@ -583,22 +668,50 @@ harnesses/Cartograph.Baseline/   the same app built on .NET primitives only, for
 | `SegmentManifest.cs` | The append-only list of `SegmentDescriptor`s plus which are live; `"CTMF"`-magic-validated read/write. |
 | `SegmentedArtifactWriter.cs` / `SegmentBuilder` | Computes explicit, aligned segment layout; writes header → segment regions → manifest, hashing each segment with XxHash3 as it writes. Emits directory-first or payload-first per segment depending on whether it holds streamed records. `AddRecord` takes bytes; `AddFileRecord` takes a path (or a window of one) and streams it at `Save`. |
 | `RecordSource.cs` | The abstraction that decouples layout from payload residency: exposes `Length`, `HasCheapChecksum`, `ComputeChecksum()` and `WriteTo(Stream, XxHash3)`. `BufferedRecordSource` wraps a `byte[]` and caches its checksum; `FileRecordSource` streams a file window through a pooled 1 MiB buffer via `RandomAccess.Read`, hashing and writing in one pass. This is what makes writing an artifact larger than RAM possible. |
+| `StreamingArtifactWriter.cs` / `StreamingSegment.cs` | A second, forward-only writer that emits each payload as it is appended and never retains it, always payload-first. Accepts records of unknown length from a `Stream` or an `IBufferWriter<byte>` callback; `Complete()` writes the manifest and patches the reserved header, so the destination must be seekable. Output is byte-for-byte compatible with `SegmentedArtifactWriter`. See §2.8. |
 | `Artifact.cs` | `Artifact.Open` — reads/validates header and manifest, bounds-checks every segment/record offset, builds `ArtifactSegment`s; `ReadRecord(globalIndex)` maps a global index to a segment; internal `HashSequence`/`RecordDirectory` helpers. |
 | `ArtifactSegment.cs` | One live segment: record count/lengths, `ReadRecord`/`ReadRecordAsync` (offset lookup + checksum verification against the directory), returns a `RecordLease`. |
 | `ArtifactOpenOptions.cs` | `ChunkSourceKind` (Mapped/RandomAccess), mapped window size, and `VerifyChecksums` (default `true`) knobs for `Artifact.Open`. |
 | `RecordLease.cs` | Disposable, zero-copy handle to one record's `ReadOnlySequence<byte>`; exposes `IsSingleSegment`/`FirstSpan` for aligned `MemoryMarshal.Cast` reads, and `ToArray()` for an explicit copy. |
 | `CartographFormatException.cs` | The single exception type raised for any format inconsistency — bad magic, bad version/endianness, checksum mismatch, or an out-of-bounds offset. The file is treated as a trust boundary: malformed input must always throw this, never corrupt memory. |
 
-### `tests/Cartograph.Tests` (48 tests, all passing)
+### `src/Cartograph.Catalog` — the file catalog (Layer 2.5)
+
+`Cartograph` and `Cartograph.Format` deliberately know nothing about files: they store records, not
+paths. This package adds that layer, and it is what the harness and both sample explorers build on.
+
+| File | Responsibility |
+|---|---|
+| `FileCatalog.cs` | A compact, versioned directory (`CatalogVersion = 2`) of `CatalogEntry` records plus the grouping metadata (`SourceRoot`, `CreatedUtc`, `GroupingMode`, `GroupNames`, `TotalBytes`). `Serialize()`/`Deserialize(ReadOnlySequence<byte>)` move it in and out of a record — by convention the single record of segment 0, so reopening recovers the whole tree in one read. |
+| `CatalogEntry.cs` | One packed file: relative path, length, timestamp, optional whole-file XxHash3, and the record span backing it (`SegmentIndex`, `RecordIndex`, `GlobalIndex`, `RecordCount`). Convenience projections for `Name`, `Directory` and `Extension`. |
+| `CatalogedArtifact.cs` | Read-only facade over `Artifact` + `FileCatalog`: `Open`, `Find(relativePath)`, streaming reads via `ForEachChunk`/`CopyTo`, `ExtractTo` for reconstruction on disk, `ReadPrefix` for bounded previews, and `Verify` returning a `CatalogVerification` (expected vs. computed checksum). Files spanning several records are stitched transparently, so extraction never materializes a whole file. |
+
+### `samples/` — the artifact explorers
+
+Two GUI front ends over a shared, UI-agnostic engine. Their purpose is demonstrative: they make
+cross-process page sharing observable rather than merely asserted.
+
+| Project | Responsibility |
+|---|---|
+| `Cartograph.Explorer.Core` | All behaviour, no UI dependency. `ArtifactSession` wraps a `CatalogedArtifact` and exposes the chosen `ChunkSourceKind` and a `ProcessFootprint`; `RecordPreview` renders a bounded prefix (`DefaultPrefixBytes = 64 KiB`) classified by `PreviewKind`; `DisplayFormat` handles byte/rate/checksum formatting; `InstancePresence` publishes a heartbeat file per process and returns the live `PeerInstance` list (process id, front end, opened-at, mapped bytes), treating a heartbeat older than 20 seconds as a dead process. |
+| `Cartograph.Explorer.WinForms` | Windows Forms front end; targets `net10.0-windows`, so it builds on Windows only. |
+| `Cartograph.Explorer.Gtk` | GTK4 front end via GirCore, binding the system `libgtk-4.so.1` so the package carries no native payload. Cross-platform. |
+
+Neither front end has a single-instance guard, deliberately: opening the same artifact in several
+processes and comparing each window's peer list and working set is the demonstration.
+
+### `tests/Cartograph.Tests` (68 tests, all passing)
 
 | File | Covers |
 |---|---|
 | `AlignmentTests.cs` | Record/segment payloads land on the format's 64-byte alignment boundary. |
+| `CatalogTests.cs` | `Cartograph.Catalog`: catalog round-tripping through `Serialize`/`Deserialize`, path lookup, multi-record file spans, extraction, and checksum verification. |
 | `CorruptionTests.cs` | Truncated/corrupted artifacts raise `CartographFormatException` rather than misreading. |
 | `CustomChunkSourceTests.cs` | The public `IChunkSource` extension point: `Artifact.Open(IChunkSource, …)`, `ownsSource` disposal semantics, and structural validation of what a custom source returns. |
 | `HeaderValidationTests.cs` | Bad magic, wrong endianness, unsupported version, and checksum mismatches are all rejected. |
 | `RoundTripTests.cs` | Write → open → read reproduces the original records byte-for-byte. |
 | `SegmentedSequenceTests.cs` | `MappedSequence` stitches chunks in order; a record forced across multiple tiny mapped windows reconstructs byte-exact. |
+| `StreamingArtifactWriterTests.cs` | `StreamingArtifactWriter`: round-tripping under both chunk sources, byte-for-byte layout equivalence with the batch writer, ingesting a `Stream` whose length is not known in advance, and the guard rails around segment and artifact lifetime. |
 | `StreamingRecordTests.cs` | `AddFileRecord` streaming: payload-first layout, file windows, mixed buffered/streamed segments, empty-file records, and the oversized-record rejection path. |
 | `TestArtifacts.cs` | Shared test helpers: deterministic byte patterns, single-segment artifact builder, temp-file cleanup. |
 | `ViewLeaseTests.cs` | Lease ref-counting semantics: double-dispose is safe, use-after-dispose throws, leases survive an owner `Dispose()`. |
@@ -607,7 +720,7 @@ harnesses/Cartograph.Baseline/   the same app built on .NET primitives only, for
 
 | File | Measures |
 |---|---|
-| `OpenTimeBenchmarks.cs` | The headline result: open time vs. file size (8/64/256 MiB). Mapped and RandomAccess opens should be **flat**; a naive `File.ReadAllBytes` baseline is **linear** — this contrast is the core pitch. |
+| `OpenTimeBenchmarks.cs` | Open time vs. file size (8/64/256 MiB). Mapped and RandomAccess opens should be **flat**; the `File.ReadAllBytes` baseline is **linear**. Treat that contrast as the floor rather than the pitch: `ReadAllBytes` is not what anyone writes for a large file, so the honest opponent is `Cartograph.Baseline`'s `naive-stream` container, where the gap is much narrower. No benchmark output is committed to the repository. |
 | `ScanBenchmarks.cs` | Sequential full-scan and random record-access throughput/allocations, mapped vs. pooled RandomAccess. |
 | `CosineSimilarityBenchmarks.cs` | `TensorPrimitives.CosineSimilarity` over mapped pages cast in place (`Mapped_CastInPlace`) vs. a fully materialized managed `float[]` corpus (`Managed_HeapVectors`) — a brute-force scan, explicitly *not* an ANN index, meant to show the allocation/working-set gap. |
 | `BenchmarkData.cs` | Shared synthetic artifact/data generation for the benchmark suite. |
@@ -617,7 +730,9 @@ harnesses/Cartograph.Baseline/   the same app built on .NET primitives only, for
 
 ## 9. Requirements and constraints
 
-- **.NET 10 SDK**, targets `net10.0`.
+- **.NET 10 SDK**, targets `net10.0`. `Cartograph.Explorer.WinForms` targets `net10.0-windows` and
+  builds on Windows only; every other project is cross-platform. The GTK explorer needs GTK4 present
+  at runtime (`libgtk-4-1` on Debian/Ubuntu, `gtk4` on Fedora/Arch).
 - **64-bit processes only** — mapping relies on address space a 32-bit process doesn't have enough
   of.
 - **Windows and Linux** supported for prefaulting/allocation-granularity P/Invokes; other platforms
