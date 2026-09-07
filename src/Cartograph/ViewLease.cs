@@ -50,8 +50,13 @@ namespace Cartograph;
 /// </remarks>
 public sealed class ViewLease : IDisposable
 {
+    /// <summary>The segment this lease holds a reference on, cleared on disposal.</summary>
     private MappedSegment? _segment;
+
+    /// <summary>The leased read-only region of the segment.</summary>
     private readonly ReadOnlyMemory<byte> _memory;
+
+    /// <summary>Non-zero once <see cref="Dispose"/> has run, used to make disposal idempotent.</summary>
     private int _disposed;
 
     /// <summary>
@@ -66,6 +71,7 @@ public sealed class ViewLease : IDisposable
     }
 
     /// <summary>The leased region as read-only memory. Valid only until the lease is disposed.</summary>
+    /// <value>The leased region as read-only memory. Valid only until the lease is disposed.</value>
     /// <exception cref="System.ObjectDisposedException">The <see cref="ViewLease"/> has been disposed.</exception>
     public ReadOnlyMemory<byte> Memory
     {
@@ -77,6 +83,7 @@ public sealed class ViewLease : IDisposable
     }
 
     /// <summary>The leased region as a read-only span. Valid only until the lease is disposed.</summary>
+    /// <value>The leased region as a read-only span. Valid only until the lease is disposed.</value>
     /// <exception cref="System.ObjectDisposedException">The <see cref="ViewLease"/> has been disposed.</exception>
     public ReadOnlySpan<byte> Span => Memory.Span;
 

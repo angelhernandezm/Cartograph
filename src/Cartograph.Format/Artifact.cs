@@ -81,15 +81,19 @@ public sealed class Artifact : IDisposable
     }
 
     /// <summary>The validated file header.</summary>
+    /// <value>The validated file header.</value>
     public ArtifactHeader Header { get; }
 
     /// <summary>The chunk source strategy in use.</summary>
+    /// <value>The chunk source strategy in use.</value>
     public ChunkSourceKind SourceKind { get; }
 
     /// <summary>The live segments in the artifact, in manifest order.</summary>
+    /// <value>The live segments in the artifact, in manifest order.</value>
     public IReadOnlyList<ArtifactSegment> Segments { get; }
 
     /// <summary>The total number of records across all live segments.</summary>
+    /// <value>The total number of records across all live segments.</value>
     public long RecordCount
     {
         get
@@ -654,11 +658,14 @@ public sealed class Artifact : IDisposable
 internal sealed class RecordDirectory(long[] relOffsets, long[] lengths, ulong[] checksums)
 {
     /// <summary>The payload-relative byte offset of each record, indexed by record position.</summary>
+    /// <value>The payload-relative byte offset of each record, indexed by record position.</value>
     public long[] RelOffsets { get; } = relOffsets;
 
     /// <summary>The byte length of each record, indexed by record position.</summary>
+    /// <value>The byte length of each record, indexed by record position.</value>
     public long[] Lengths { get; } = lengths;
 
     /// <summary>The XxHash3 checksum of each record's bytes, indexed by record position.</summary>
+    /// <value>The XxHash3 checksum of each record's bytes, indexed by record position.</value>
     public ulong[] Checksums { get; } = checksums;
 }

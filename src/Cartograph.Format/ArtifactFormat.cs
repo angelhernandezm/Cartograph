@@ -52,9 +52,11 @@ namespace Cartograph.Format;
 public static class ArtifactFormat
 {
     /// <summary>The 4-byte file magic: ASCII "CTGH".</summary>
+    /// <value>The 4-byte file magic: ASCII "CTGH".</value>
     public static ReadOnlySpan<byte> Magic => "CTGH"u8;
 
     /// <summary>The 4-byte segment-manifest magic: ASCII "CTMF".</summary>
+    /// <value>The 4-byte segment-manifest magic: ASCII "CTMF".</value>
     public static ReadOnlySpan<byte> ManifestMagic => "CTMF"u8;
 
     /// <summary>The endianness sentinel written as a little-endian <see cref="uint"/>.</summary>

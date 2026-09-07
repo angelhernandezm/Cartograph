@@ -85,9 +85,11 @@ public sealed class StreamingSegment : IDisposable
     }
 
     /// <summary>The stable numeric identifier assigned to this segment.</summary>
+    /// <value>The stable numeric identifier assigned to this segment.</value>
     public uint Id { get; }
 
     /// <summary>The number of records appended so far.</summary>
+    /// <value>The number of records appended so far.</value>
     public int RecordCount => _entries.Count;
 
     /// <summary>Appends a record whose bytes are already in memory, writing them through immediately.</summary>
@@ -336,12 +338,15 @@ public sealed class StreamingSegment : IDisposable
     private readonly struct RecordEntry(long relativeOffset, long length, ulong checksum)
     {
         /// <summary>The record's offset relative to the start of the segment payload region.</summary>
+        /// <value>The record's offset relative to the start of the segment payload region.</value>
         public long RelativeOffset { get; } = relativeOffset;
 
         /// <summary>The record's payload length in bytes.</summary>
+        /// <value>The record's payload length in bytes.</value>
         public long Length { get; } = length;
 
         /// <summary>The XxHash3 checksum of the record's payload.</summary>
+        /// <value>The XxHash3 checksum of the record's payload.</value>
         public ulong Checksum { get; } = checksum;
     }
 }

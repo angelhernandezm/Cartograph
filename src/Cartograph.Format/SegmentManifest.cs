@@ -49,9 +49,11 @@ public sealed class SegmentManifest
     }
 
     /// <summary>All descriptors recorded in the manifest, in order.</summary>
+    /// <value>All descriptors recorded in the manifest, in order.</value>
     public IReadOnlyList<SegmentDescriptor> Segments { get; }
 
     /// <summary>The serialized size of this manifest in bytes.</summary>
+    /// <value>The serialized size of this manifest in bytes.</value>
     public int ByteLength => ArtifactFormat.ManifestHeaderSize + Segments.Count * ArtifactFormat.SegmentDescriptorSize;
 
     /// <summary>Serializes the manifest into <paramref name="destination"/>.</summary>

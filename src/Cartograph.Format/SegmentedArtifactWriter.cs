@@ -338,21 +338,27 @@ public sealed class SegmentedArtifactWriter
         bool payloadFirst)
     {
         /// <summary>The file-relative byte offset at which the segment data region begins.</summary>
+        /// <value>The file-relative byte offset at which the segment data region begins.</value>
         public long DataOffset { get; } = dataOffset;
 
         /// <summary>The file-relative byte offset of the record directory within this segment.</summary>
+        /// <value>The file-relative byte offset of the record directory within this segment.</value>
         public long DirectoryOffset { get; } = directoryOffset;
 
         /// <summary>The file-relative byte offset of the record payload region within this segment.</summary>
+        /// <value>The file-relative byte offset of the record payload region within this segment.</value>
         public long PayloadOffset { get; } = payloadOffset;
 
         /// <summary>The total byte length of this segment's data region.</summary>
+        /// <value>The total byte length of this segment's data region.</value>
         public long DataLength { get; } = dataLength;
 
         /// <summary>The payload-relative byte offset of each record, indexed by record position.</summary>
+        /// <value>The payload-relative byte offset of each record, indexed by record position.</value>
         public long[] RecordRelOffsets { get; } = recordRelOffsets;
 
         /// <summary>Whether the payload region precedes the record directory within this segment.</summary>
+        /// <value>Whether the payload region precedes the record directory within this segment.</value>
         public bool PayloadFirst { get; } = payloadFirst;
     }
 }
@@ -376,18 +382,25 @@ public sealed class SegmentBuilder
     internal SegmentBuilder(uint id) => Id = id;
 
     /// <summary>The stable numeric identifier assigned to this segment.</summary>
+    /// <value>The stable numeric identifier assigned to this segment.</value>
     internal uint Id { get; }
 
     /// <summary>The record payload sources accumulated so far, in record order.</summary>
+    /// <value>The record payload sources accumulated so far, in record order.</value>
     internal IReadOnlyList<RecordSource> Records => _records;
 
     /// <summary>
     /// Whether this segment contains a record that cannot be checksummed without reading its backing
     /// store, and therefore must be laid out payload-first.
     /// </summary>
+    /// <value>
+    /// Whether this segment contains a record that cannot be checksummed without reading its backing store,
+    /// and therefore must be laid out payload-first.
+    /// </value>
     internal bool RequiresPayloadFirstLayout { get; private set; }
 
     /// <summary>The number of records added so far.</summary>
+    /// <value>The number of records added so far.</value>
     public int RecordCount => _records.Count;
 
     /// <summary>Appends a record, copying <paramref name="data"/> into the writer.</summary>

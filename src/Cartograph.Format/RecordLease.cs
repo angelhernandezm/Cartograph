@@ -57,18 +57,25 @@ public sealed class RecordLease : IDisposable
     }
 
     /// <summary>The record bytes. Valid only until this lease is disposed.</summary>
+    /// <value>The record bytes. Valid only until this lease is disposed.</value>
     public ReadOnlySequence<byte> Sequence => _chunk.Sequence;
 
     /// <summary>The record length in bytes.</summary>
+    /// <value>The record length in bytes.</value>
     public long Length => _chunk.Sequence.Length;
 
     /// <summary>Whether the record occupies a single contiguous span (safe for <c>MemoryMarshal.Cast</c>).</summary>
+    /// <value>Whether the record occupies a single contiguous span (safe for <c>MemoryMarshal.Cast</c>).</value>
     public bool IsSingleSegment => _chunk.Sequence.IsSingleSegment;
 
     /// <summary>
     /// The first (and, when <see cref="IsSingleSegment"/>, only) contiguous span of the record. Use
     /// this for aligned <c>MemoryMarshal.Cast&lt;byte, float&gt;</c> reads over mapped pages.
     /// </summary>
+    /// <value>
+    /// The first (and, when <see cref="IsSingleSegment"/>, only) contiguous span of the record. Use this
+    /// for aligned <c>MemoryMarshal.Cast&lt;byte, float&gt;</c> reads over mapped pages.
+    /// </value>
     public ReadOnlySpan<byte> FirstSpan => _chunk.Sequence.FirstSpan;
 
     /// <summary>Copies the record into a newly allocated array.</summary>

@@ -150,9 +150,11 @@ public sealed class StreamingArtifactWriter : IDisposable
     }
 
     /// <summary>The number of segments closed so far.</summary>
+    /// <value>The number of segments closed so far.</value>
     public int SegmentCount => _descriptors.Count;
 
     /// <summary>The number of bytes written to the destination so far.</summary>
+    /// <value>The number of bytes written to the destination so far.</value>
     public long BytesWritten => _position;
 
     /// <summary>
@@ -290,9 +292,11 @@ public sealed class StreamingArtifactWriter : IDisposable
     }
 
     /// <summary>The destination stream, exposed so an open segment can stage bytes through it.</summary>
+    /// <value>The destination stream, exposed so an open segment can stage bytes through it.</value>
     internal Stream Destination => _stream;
 
     /// <summary>The current write position within the destination.</summary>
+    /// <value>The current write position within the destination.</value>
     internal long Position => _position;
 
     /// <summary>Advances the recorded write position by <paramref name="count"/> bytes.</summary>
@@ -328,6 +332,7 @@ public sealed class StreamingArtifactWriter : IDisposable
     /// <summary>Records a closed segment's descriptor and clears the open-segment slot.</summary>
     /// <param name="segment">The segment that has just been closed.</param>
     /// <param name="descriptor">The descriptor describing the closed segment.</param>
+    /// <exception cref="System.InvalidOperationException"><paramref name="segment"/> is not the currently open segment.</exception>
     internal void OnSegmentCompleted(StreamingSegment segment, in SegmentDescriptor descriptor)
     {
         if (!ReferenceEquals(_openSegment, segment))

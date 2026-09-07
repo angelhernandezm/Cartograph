@@ -54,11 +54,17 @@ public class CosineSimilarityBenchmarks
     /// <summary>Number of float dimensions per vector record.</summary>
     private const int Dimensions = 768;
 
+    /// <summary>Path to the temporary artifact written by the setup step.</summary>
     private string _path = string.Empty;
+
+    /// <summary>The query vector every record is scored against.</summary>
     private float[] _query = [];
+
+    /// <summary>The fully materialized managed baseline, one array per record.</summary>
     private float[][] _managed = [];
 
     /// <summary>Gets or sets the number of vector records in the artifact.</summary>
+    /// <value>The number of vector records in the artifact.</value>
     [Params(50_000)]
     public int RecordCount { get; set; }
 

@@ -55,8 +55,8 @@ internal sealed class LoadResult
     /// Gets the time taken to open the artifact
     /// </summary>
     /// <value>
-    /// Expected to be effectively constant regardless of artifact size, because opening reads only
-    /// the header, the manifest and the per-segment record directories.
+    /// Expected to be effectively constant regardless of artifact size, because opening reads only the
+    /// header, the manifest and the per-segment record directories.
     /// </value>
     public required TimeSpan OpenElapsed { get; init; }
 
@@ -560,6 +560,7 @@ internal static class ArtifactLoader
     /// <param name="catalog">Catalog describing the packed files</param>
     /// <param name="destination">Directory to write into; created when it does not exist</param>
     /// <param name="useAsync">Whether to use the asynchronous record API</param>
+    /// <returns>A <see cref="System.Threading.Tasks.Task"/> that completes once every file has been written.</returns>
     /// <exception cref="System.InvalidOperationException">A catalog entry escapes the destination directory.</exception>
     private static async Task ExtractAsync(
         Artifact artifact,
@@ -625,6 +626,7 @@ internal static class ArtifactLoader
     /// <param name="catalog">Catalog used to resolve the path to a record index</param>
     /// <param name="relativePath">Relative path of the file to print</param>
     /// <param name="useAsync">Whether to use the asynchronous record API</param>
+    /// <returns>A <see cref="System.Threading.Tasks.Task"/> that completes once the record has been printed.</returns>
     private static async Task CatAsync(Artifact artifact, FileCatalog catalog, string relativePath, bool useAsync)
     {
         string normalized = relativePath.Replace('\\', '/');

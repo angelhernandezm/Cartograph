@@ -60,10 +60,22 @@ namespace Cartograph;
 /// </remarks>
 public sealed class MappedSegment : IDisposable
 {
+    /// <summary>The accessor that owns the mapped view backing this segment.</summary>
     private readonly MemoryMappedViewAccessor _accessor;
+
+    /// <summary>The manager that pins the view and projects it as memory.</summary>
     private readonly MappedMemoryManager _manager;
+
+    /// <summary>The read-only projection of the mapped region.</summary>
     private readonly ReadOnlyMemory<byte> _memory;
+
+    /// <summary>
+    /// The number of outstanding references: one for the owner plus one per live lease. The view is
+    /// unmapped when this reaches zero.
+    /// </summary>
     private int _refCount = 1;
+
+    /// <summary>Non-zero once the owner's reference has been released, used to make disposal idempotent.</summary>
     private int _ownerReleased;
 
     /// <summary>Creates a segment over <paramref name="length"/> bytes starting at <paramref name="fileOffset"/>.</summary>
@@ -90,15 +102,21 @@ public sealed class MappedSegment : IDisposable
     }
 
     /// <summary>The absolute file offset of the region this segment covers.</summary>
+    /// <value>The absolute file offset of the region this segment covers.</value>
     public long FileOffset { get; }
 
     /// <summary>The number of bytes covered by this segment.</summary>
+    /// <value>The number of bytes covered by this segment.</value>
     public int Length => _manager.Length;
 
     /// <summary>
     /// The whole segment as read-only memory. Prefer <see cref="Lease"/> when the memory will outlive
     /// the immediate call, so its lifetime is protected by the reference count.
     /// </summary>
+    /// <value>
+    /// The whole segment as read-only memory. Prefer <see cref="Lease"/> when the memory will outlive the
+    /// immediate call, so its lifetime is protected by the reference count.
+    /// </value>
     /// <exception cref="System.ObjectDisposedException">The <see cref="MappedSegment"/> has been fully released.</exception>
     public ReadOnlyMemory<byte> Memory
     {

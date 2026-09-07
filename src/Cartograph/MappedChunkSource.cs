@@ -39,7 +39,10 @@ namespace Cartograph;
 /// </summary>
 public sealed class MappedChunkSource : IChunkSource
 {
+    /// <summary>The mapped file whose windows back every returned chunk.</summary>
     private readonly MappedFile _file;
+
+    /// <summary>Whether disposing this source should also dispose <see cref="_file"/>.</summary>
     private readonly bool _ownsFile;
 
     /// <summary>

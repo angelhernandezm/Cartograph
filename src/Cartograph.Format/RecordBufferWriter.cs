@@ -86,6 +86,7 @@ internal sealed class RecordBufferWriter : IBufferWriter<byte>, IDisposable
     }
 
     /// <summary>The total number of record bytes accepted so far, drained and staged.</summary>
+    /// <value>The total number of record bytes accepted so far, drained and staged.</value>
     public long BytesWritten => _flushed + _index;
 
     /// <summary>Marks <paramref name="count"/> staged bytes as written by the caller.</summary>

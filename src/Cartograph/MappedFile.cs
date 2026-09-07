@@ -55,9 +55,16 @@ public sealed class MappedFile : IDisposable
     /// <summary>The default window size (256 MiB), a multiple of the Windows allocation granularity.</summary>
     public const long DefaultWindowSize = 256L * 1024 * 1024;
 
+    /// <summary>The underlying OS mapping object that all windows create views over.</summary>
     private readonly MemoryMappedFile _mappedFile;
+
+    /// <summary>The windows that tile the file, created lazily and indexed by window number.</summary>
     private readonly MappedSegment[] _windows;
+
+    /// <summary>The size in bytes of every window except, potentially, the last.</summary>
     private readonly long _windowSize;
+
+    /// <summary>Non-zero once <see cref="Dispose"/> has run, used to make disposal idempotent.</summary>
     private int _disposed;
 
     /// <summary>
@@ -83,12 +90,15 @@ public sealed class MappedFile : IDisposable
     }
 
     /// <summary>The total length of the mapped file in bytes.</summary>
+    /// <value>The total length of the mapped file in bytes.</value>
     public long Length { get; }
 
     /// <summary>The window size used to tile the file.</summary>
+    /// <value>The window size used to tile the file.</value>
     public long WindowSize => _windowSize;
 
     /// <summary>The number of windows tiling the file.</summary>
+    /// <value>The number of windows tiling the file.</value>
     public int WindowCount => _windows.Length;
 
     /// <summary>

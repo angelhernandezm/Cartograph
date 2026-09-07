@@ -42,21 +42,27 @@ namespace Cartograph.Format;
 public readonly struct ArtifactHeader
 {
     /// <summary>The format major version recorded in the file.</summary>
+    /// <value>The format major version recorded in the file.</value>
     public required ushort VersionMajor { get; init; }
 
     /// <summary>The format minor version recorded in the file.</summary>
+    /// <value>The format minor version recorded in the file.</value>
     public required ushort VersionMinor { get; init; }
 
     /// <summary>The native pointer size (in bytes) recorded by the writer.</summary>
+    /// <value>The native pointer size (in bytes) recorded by the writer.</value>
     public required byte PointerSize { get; init; }
 
     /// <summary>The file-relative offset of the segment manifest.</summary>
+    /// <value>The file-relative offset of the segment manifest.</value>
     public required ulong ManifestOffset { get; init; }
 
     /// <summary>The length in bytes of the segment manifest.</summary>
+    /// <value>The length in bytes of the segment manifest.</value>
     public required ulong ManifestLength { get; init; }
 
     /// <summary>The total length in bytes the writer recorded for the artifact.</summary>
+    /// <value>The total length in bytes the writer recorded for the artifact.</value>
     public required ulong ContentLength { get; init; }
 
     /// <summary>Serializes the header into <paramref name="destination"/> (must be at least <see cref="ArtifactFormat.HeaderSize"/> bytes).</summary>

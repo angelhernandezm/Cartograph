@@ -44,6 +44,8 @@ internal static class TestArtifacts
     public static string NewTempPath() => Path.Combine(Path.GetTempPath(), $"cartograph-{Guid.NewGuid():N}.ctg");
 
     /// <summary>Writes a single-segment artifact with the given records and returns its path.</summary>
+    /// <param name="records">The records to place, in order, into the artifact's only segment.</param>
+    /// <returns>An absolute path to the newly written artifact.</returns>
     public static string WriteSingleSegment(IReadOnlyList<byte[]> records)
     {
         string path = NewTempPath();
@@ -87,6 +89,7 @@ internal sealed class TempFile : IDisposable
     public TempFile(string path) => Path = path;
 
     /// <summary>Gets the absolute path of the tracked temporary file.</summary>
+    /// <value>The absolute path of the tracked temporary file.</value>
     public string Path { get; }
 
     /// <summary>

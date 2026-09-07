@@ -47,7 +47,10 @@ namespace Cartograph;
 /// </remarks>
 public sealed class RandomAccessChunkSource : IChunkSource
 {
+    /// <summary>The file handle every read is issued against.</summary>
     private readonly SafeFileHandle _handle;
+
+    /// <summary>Whether disposing this source should also dispose <see cref="_handle"/>.</summary>
     private readonly bool _ownsHandle;
 
     /// <summary>Wraps an existing file handle.</summary>
@@ -177,6 +180,7 @@ public sealed class RandomAccessChunkSource : IChunkSource
     /// </summary>
     private sealed class PooledBuffer(byte[] buffer) : IDisposable
     {
+        /// <summary>The rented buffer, exchanged for <c>null</c> when it is returned to the pool.</summary>
         private byte[]? _buffer = buffer;
 
         /// <summary>Returns the rented buffer to <see cref="ArrayPool{Byte}.Shared"/>. Safe to call more than once.</summary>

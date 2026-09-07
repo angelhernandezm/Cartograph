@@ -62,10 +62,19 @@ namespace Cartograph;
 /// </remarks>
 public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
 {
+    /// <summary>The mapped view whose base pointer this manager pins.</summary>
     private readonly SafeMemoryMappedViewHandle _handle;
+
+    /// <summary>The number of bytes exposed by this manager.</summary>
     private readonly int _length;
+
+    /// <summary>The pinned base pointer, already advanced by the requested offset.</summary>
     private byte* _pointer;
+
+    /// <summary>Whether the pointer was successfully acquired and therefore must be released.</summary>
     private bool _acquired;
+
+    /// <summary>Whether the manager has already been disposed, used to make disposal idempotent.</summary>
     private bool _disposed;
 
     /// <summary>
@@ -104,6 +113,7 @@ public sealed unsafe class MappedMemoryManager : MemoryManager<byte>
     }
 
     /// <summary>The number of bytes exposed by this manager.</summary>
+    /// <value>The number of bytes exposed by this manager.</value>
     public int Length => _length;
 
     /// <inheritdoc />

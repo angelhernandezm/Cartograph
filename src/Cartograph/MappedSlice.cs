@@ -45,6 +45,9 @@ namespace Cartograph;
 /// </remarks>
 public sealed class MappedSlice : IDisposable
 {
+    /// <summary>
+    /// The leases keeping the sliced windows mapped, exchanged for <c>null</c> when the slice is disposed.
+    /// </summary>
     private ViewLease[]? _leases;
 
     /// <summary>
@@ -59,6 +62,7 @@ public sealed class MappedSlice : IDisposable
     }
 
     /// <summary>The sliced bytes. Valid only until the slice is disposed.</summary>
+    /// <value>The sliced bytes. Valid only until the slice is disposed.</value>
     public ReadOnlySequence<byte> Sequence { get; }
 
     /// <summary>Releases the leases held by this slice. Safe to call more than once.</summary>

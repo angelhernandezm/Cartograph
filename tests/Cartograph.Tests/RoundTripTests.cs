@@ -108,6 +108,7 @@ public class RoundTripTests
     /// Verifies that <see cref="ArtifactSegment.ReadRecordAsync"/> returns bytes
     /// identical to the synchronous <see cref="ArtifactSegment.ReadRecord"/> path.
     /// </summary>
+    /// <returns>A <see cref="Task"/> that completes when the assertion has run.</returns>
     [Fact]
     public async Task ReadRecordAsync_MatchesSync()
     {

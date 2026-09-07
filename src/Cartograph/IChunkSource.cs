@@ -45,6 +45,9 @@ namespace Cartograph;
 /// </remarks>
 public sealed class ChunkLease : IDisposable
 {
+    /// <summary>
+    /// The object owning the memory behind the sequence, exchanged for <c>null</c> when it is disposed.
+    /// </summary>
     private IDisposable? _owner;
 
     /// <summary>
@@ -69,6 +72,7 @@ public sealed class ChunkLease : IDisposable
     }
 
     /// <summary>The chunk bytes. Valid only until this lease is disposed.</summary>
+    /// <value>The chunk bytes. Valid only until this lease is disposed.</value>
     public ReadOnlySequence<byte> Sequence { get; }
 
     /// <summary>Releases the backing resource. Safe to call more than once.</summary>
@@ -143,6 +147,7 @@ public sealed class ChunkLease : IDisposable
 public interface IChunkSource : IDisposable
 {
     /// <summary>The total length of the underlying file in bytes. Must not change over the source's lifetime.</summary>
+    /// <value>The total length of the underlying file in bytes. Must not change over the source's lifetime.</value>
     long Length { get; }
 
     /// <summary>Reads <c>[offset, offset + length)</c> and returns it as a disposable chunk.</summary>

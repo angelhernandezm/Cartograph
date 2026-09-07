@@ -53,12 +53,17 @@ public enum ChunkSourceKind
 public sealed class ArtifactOpenOptions
 {
     /// <summary>The default options: memory-mapped access with checksum verification enabled.</summary>
+    /// <value>The default options: memory-mapped access with checksum verification enabled.</value>
     public static ArtifactOpenOptions Default { get; } = new();
 
     /// <summary>
     /// Which chunk source strategy to use for record reads. Ignored when the artifact is opened
     /// from a caller-supplied <see cref="IChunkSource"/>.
     /// </summary>
+    /// <value>
+    /// Which chunk source strategy to use for record reads. Ignored when the artifact is opened from a
+    /// caller-supplied <see cref="IChunkSource"/>.
+    /// </value>
     public ChunkSourceKind ChunkSource { get; init; } = ChunkSourceKind.Mapped;
 
     /// <summary>
@@ -66,8 +71,16 @@ public sealed class ArtifactOpenOptions
     /// <see cref="ChunkSourceKind.Mapped"/>. A small value forces the multi-view stitching path.
     /// Ignored when the artifact is opened from a caller-supplied <see cref="IChunkSource"/>.
     /// </summary>
+    /// <value>
+    /// The mapped window size, used only when <see cref="ChunkSource"/> is
+    /// <see cref="ChunkSourceKind.Mapped"/>. A small value forces the multi-view stitching path. Ignored
+    /// when the artifact is opened from a caller-supplied <see cref="IChunkSource"/>.
+    /// </value>
     public long WindowSize { get; init; } = MappedFile.DefaultWindowSize;
 
     /// <summary>Whether to verify each record's checksum on read (recommended). Defaults to <see langword="true"/>.</summary>
+    /// <value>
+    /// Whether to verify each record's checksum on read (recommended). Defaults to <see langword="true"/>.
+    /// </value>
     public bool VerifyChecksums { get; init; } = true;
 }

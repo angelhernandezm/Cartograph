@@ -65,30 +65,41 @@ public sealed class ArtifactSegment
     }
 
     /// <summary>The segment's stable identifier.</summary>
+    /// <value>The segment's stable identifier.</value>
     public uint SegmentId => _descriptor.SegmentId;
 
     /// <summary>The number of records in the segment.</summary>
+    /// <value>The number of records in the segment.</value>
     public int RecordCount => _directory.Lengths.Length;
 
     /// <summary>The total byte length of the segment region.</summary>
+    /// <value>The total byte length of the segment region.</value>
     public long DataLength => (long)_descriptor.DataLength;
 
     /// <summary>The file-relative byte offset at which this segment's region begins.</summary>
+    /// <value>The file-relative byte offset at which this segment's region begins.</value>
     public long DataOffset => (long)_descriptor.DataOffset;
 
     /// <summary>The file-relative byte offset of this segment's record directory.</summary>
+    /// <value>The file-relative byte offset of this segment's record directory.</value>
     public long DirectoryOffset => (long)_descriptor.DirectoryOffset;
 
     /// <summary>The file-relative byte offset of this segment's record payload region.</summary>
+    /// <value>The file-relative byte offset of this segment's record payload region.</value>
     public long PayloadOffset => (long)_descriptor.PayloadOffset;
 
     /// <summary>
     /// Whether this segment's payload region precedes its record directory, which is how segments
     /// containing streamed records are laid out.
     /// </summary>
+    /// <value>
+    /// Whether this segment's payload region precedes its record directory, which is how segments
+    /// containing streamed records are laid out.
+    /// </value>
     public bool IsPayloadFirst => PayloadOffset < DirectoryOffset;
 
     /// <summary>The XxHash3 checksum recorded for the whole segment region.</summary>
+    /// <value>The XxHash3 checksum recorded for the whole segment region.</value>
     public ulong Checksum => _descriptor.Checksum;
 
     /// <summary>The length in bytes of the record at <paramref name="index"/>.</summary>

@@ -47,12 +47,17 @@ namespace Cartograph.Format;
 internal abstract class RecordSource
 {
     /// <summary>The byte length of the record.</summary>
+    /// <value>The byte length of the record.</value>
     public abstract long Length { get; }
 
     /// <summary>
     /// Whether this source can report <see cref="ComputeChecksum"/> cheaply, without re-reading a
     /// backing store. Segments containing any source that cannot are laid out payload-first.
     /// </summary>
+    /// <value>
+    /// Whether this source can report <see cref="ComputeChecksum"/> cheaply, without re-reading a backing
+    /// store. Segments containing any source that cannot are laid out payload-first.
+    /// </value>
     public abstract bool HasCheapChecksum { get; }
 
     /// <summary>Computes the XxHash3 checksum of the record's bytes.</summary>
@@ -90,9 +95,11 @@ internal sealed class BufferedRecordSource : RecordSource
     public BufferedRecordSource(byte[] payload) => _payload = payload;
 
     /// <summary>The byte length of the buffered payload.</summary>
+    /// <value>The byte length of the buffered payload.</value>
     public override long Length => _payload.Length;
 
     /// <summary>Always <see langword="true"/>; the payload is already in memory.</summary>
+    /// <value>Always <see langword="true"/>; the payload is already in memory.</value>
     public override bool HasCheapChecksum => true;
 
     /// <summary>Computes (and caches) the XxHash3 checksum of the buffered payload.</summary>
@@ -144,9 +151,11 @@ internal sealed class FileRecordSource : RecordSource
     }
 
     /// <summary>The byte length of the record's range within the backing file.</summary>
+    /// <value>The byte length of the record's range within the backing file.</value>
     public override long Length { get; }
 
     /// <summary>Always <see langword="false"/>; checksumming requires reading the file.</summary>
+    /// <value>Always <see langword="false"/>; checksumming requires reading the file.</value>
     public override bool HasCheapChecksum => false;
 
     /// <summary>Reads the backing range and computes its XxHash3 checksum without writing it.</summary>

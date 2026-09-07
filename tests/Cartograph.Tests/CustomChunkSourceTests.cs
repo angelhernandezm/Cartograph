@@ -273,9 +273,11 @@ internal sealed class InMemoryChunkSource : IChunkSource
     public long Length => _bytes.Length;
 
     /// <summary>The total number of bytes returned by this source so far.</summary>
+    /// <value>The total number of bytes returned by this source so far.</value>
     public long BytesRead => Interlocked.Read(ref _bytesRead);
 
     /// <summary>The number of times this source has been disposed.</summary>
+    /// <value>The number of times this source has been disposed.</value>
     public int DisposeCount => Volatile.Read(ref _disposeCount);
 
     /// <inheritdoc />

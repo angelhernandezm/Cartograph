@@ -103,7 +103,10 @@ public class ViewLeaseTests
     /// </summary>
     private sealed class LeaseFixture : IDisposable
     {
+        /// <summary>Path to the temporary file backing the mapping, deleted on disposal.</summary>
         private readonly string _path;
+
+        /// <summary>The mapping opened over <see cref="_path"/>.</summary>
         private readonly MemoryMappedFile _mmf;
 
         /// <summary>
@@ -120,9 +123,11 @@ public class ViewLeaseTests
         }
 
         /// <summary>Gets the expected byte content written to the mapped file.</summary>
+        /// <value>The expected byte content written to the mapped file.</value>
         public byte[] Expected { get; }
 
         /// <summary>Gets the <see cref="MappedSegment"/> wrapping the mapped file.</summary>
+        /// <value>The <see cref="MappedSegment"/> wrapping the mapped file.</value>
         public MappedSegment Segment { get; }
 
         /// <summary>

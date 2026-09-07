@@ -45,9 +45,11 @@ namespace Cartograph;
 public static partial class Platform
 {
     /// <summary>The system memory page size in bytes.</summary>
+    /// <value>The system memory page size in bytes.</value>
     public static int PageSize => Environment.SystemPageSize;
 
     /// <summary>The OS allocation granularity in bytes (64 KiB on Windows; page size elsewhere).</summary>
+    /// <value>The OS allocation granularity in bytes (64 KiB on Windows; page size elsewhere).</value>
     public static long AllocationGranularity { get; } = QueryAllocationGranularity();
 
     /// <summary>Rounds <paramref name="value"/> up to a multiple of <paramref name="alignment"/>.</summary>

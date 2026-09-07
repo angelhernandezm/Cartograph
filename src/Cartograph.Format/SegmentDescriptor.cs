@@ -47,30 +47,39 @@ namespace Cartograph.Format;
 public readonly struct SegmentDescriptor
 {
     /// <summary>A stable identifier for the segment.</summary>
+    /// <value>A stable identifier for the segment.</value>
     public required uint SegmentId { get; init; }
 
     /// <summary>Descriptor flags (see <see cref="ArtifactFormat.SegmentFlagLive"/>).</summary>
+    /// <value>Descriptor flags (see <see cref="ArtifactFormat.SegmentFlagLive"/>).</value>
     public required uint Flags { get; init; }
 
     /// <summary>The file-relative offset of the segment region.</summary>
+    /// <value>The file-relative offset of the segment region.</value>
     public required ulong DataOffset { get; init; }
 
     /// <summary>The length of the segment region in bytes.</summary>
+    /// <value>The length of the segment region in bytes.</value>
     public required ulong DataLength { get; init; }
 
     /// <summary>The number of records in the segment.</summary>
+    /// <value>The number of records in the segment.</value>
     public required ulong RecordCount { get; init; }
 
     /// <summary>The file-relative offset of the record directory.</summary>
+    /// <value>The file-relative offset of the record directory.</value>
     public required ulong DirectoryOffset { get; init; }
 
     /// <summary>The file-relative offset of the record payload region.</summary>
+    /// <value>The file-relative offset of the record payload region.</value>
     public required ulong PayloadOffset { get; init; }
 
     /// <summary>The XxHash3 checksum of the whole segment region.</summary>
+    /// <value>The XxHash3 checksum of the whole segment region.</value>
     public required ulong Checksum { get; init; }
 
     /// <summary>Whether the segment is live in the current manifest.</summary>
+    /// <value>Whether the segment is live in the current manifest.</value>
     public bool IsLive => (Flags & ArtifactFormat.SegmentFlagLive) != 0;
 
     /// <summary>Serializes the descriptor into <paramref name="destination"/> (<see cref="ArtifactFormat.SegmentDescriptorSize"/> bytes).</summary>

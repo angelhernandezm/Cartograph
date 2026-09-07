@@ -52,11 +52,17 @@ public class ScanBenchmarks
     /// <summary>Number of float dimensions per vector record.</summary>
     private const int Dimensions = 768;
 
+    /// <summary>Path to the temporary artifact written by the setup step.</summary>
     private string _path = string.Empty;
+
+    /// <summary>The record count captured from <see cref="RecordCount"/> during setup.</summary>
     private int _recordCount;
+
+    /// <summary>A shuffled permutation of record indices, used by the random-access benchmarks.</summary>
     private int[] _randomOrder = [];
 
     /// <summary>Gets or sets the number of vector records in the artifact.</summary>
+    /// <value>The number of vector records in the artifact.</value>
     [Params(50_000)]
     public int RecordCount { get; set; }
 

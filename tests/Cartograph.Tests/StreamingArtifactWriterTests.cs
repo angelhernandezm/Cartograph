@@ -394,19 +394,24 @@ public class StreamingArtifactWriterTests
         private int _position;
 
         /// <summary>Always <see langword="true"/>; the stream is readable.</summary>
+        /// <value>Always <see langword="true"/>; the stream is readable.</value>
         public override bool CanRead => true;
 
         /// <summary>Always <see langword="false"/>; the stream is forward-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is forward-only.</value>
         public override bool CanSeek => false;
 
         /// <summary>Always <see langword="false"/>; the stream is read-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is read-only.</value>
         public override bool CanWrite => false;
 
         /// <summary>Always throws, because the length is deliberately unknown.</summary>
+        /// <value>Always throws, because the length is deliberately unknown.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Length => throw new NotSupportedException();
 
         /// <summary>Always throws, because the stream is forward-only.</summary>
+        /// <value>Always throws, because the stream is forward-only.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Position
         {
@@ -461,19 +466,24 @@ public class StreamingArtifactWriterTests
     private sealed class NonSeekableStream : Stream
     {
         /// <summary>Always <see langword="false"/>; the stream is write-only.</summary>
+        /// <value>Always <see langword="false"/>; the stream is write-only.</value>
         public override bool CanRead => false;
 
         /// <summary>Always <see langword="false"/>; this is the behaviour under test.</summary>
+        /// <value>Always <see langword="false"/>; this is the behaviour under test.</value>
         public override bool CanSeek => false;
 
         /// <summary>Always <see langword="true"/>; the stream accepts writes.</summary>
+        /// <value>Always <see langword="true"/>; the stream accepts writes.</value>
         public override bool CanWrite => true;
 
         /// <summary>Always throws, because the stream is not seekable.</summary>
+        /// <value>Always throws, because the stream is not seekable.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Length => throw new NotSupportedException();
 
         /// <summary>Always throws, because the stream is not seekable.</summary>
+        /// <value>Always throws, because the stream is not seekable.</value>
         /// <exception cref="System.NotSupportedException">Always thrown.</exception>
         public override long Position
         {

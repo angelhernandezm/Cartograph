@@ -48,9 +48,11 @@ namespace Cartograph.Benchmarks;
 [MemoryDiagnoser]
 public class OpenTimeBenchmarks
 {
+    /// <summary>Path to the temporary artifact written by the setup step.</summary>
     private string _path = string.Empty;
 
     /// <summary>Approximate artifact size, swept to show flat-vs-linear open cost.</summary>
+    /// <value>Approximate artifact size, swept to show flat-vs-linear open cost.</value>
     [Params(8, 64, 256)]
     public int SizeMiB { get; set; }
 
