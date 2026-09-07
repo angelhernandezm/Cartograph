@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <AssemblyName>cartograph-harness</AssemblyName>
     <RootNamespace>Cartograph.Harness</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -15,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cartograph\Cartograph.csproj" />
+    <ProjectReference Include="..\..\src\Cartograph.Catalog\Cartograph.Catalog.csproj" />
     <ProjectReference Include="..\..\src\Cartograph.Format\Cartograph.Format.csproj" />
   </ItemGroup>
 

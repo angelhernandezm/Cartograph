@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
@@ -13,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cartograph\Cartograph.csproj" />
+    <ProjectReference Include="..\..\src\Cartograph.Catalog\Cartograph.Catalog.csproj" />
     <ProjectReference Include="..\..\src\Cartograph.Format\Cartograph.Format.csproj" />
   </ItemGroup>
 
